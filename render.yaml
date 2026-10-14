@@ -1,11 +1,11 @@
 services:
   - type: web
-    name: panda-market-sprint6
+    name: panda-market-sprint8
     runtime: node
     plan: free
     region: singapore
-    branch: express-박순창-sprint6
-    rootDir: sprint6/backend
+    branch: express-박순창-sprint8
+    rootDir: .
     buildCommand: npm install && npx prisma generate
     startCommand: npx prisma migrate deploy && npm start
     healthCheckPath: /api
