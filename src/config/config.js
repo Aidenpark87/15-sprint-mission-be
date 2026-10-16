@@ -12,6 +12,9 @@ const envSchema = z.object({
       'PostgreSQL 연결 URL이어야 합니다.',
     ),
   JWT_SECRET: z.string().min(32, 'JWT_SECRET은 32자 이상이어야 합니다.'),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_REDIRECT_URI: z.string().optional(),
 });
 
 const parseEnvironment = () => {
@@ -21,6 +24,9 @@ const parseEnvironment = () => {
       PORT: process.env.PORT,
       DATABASE_URL: process.env.DATABASE_URL,
       JWT_SECRET: process.env.JWT_SECRET,
+      GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+      GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

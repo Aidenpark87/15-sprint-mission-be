@@ -1,14 +1,8 @@
 import express from 'express';
 import { flattenError, z } from 'zod';
 import { ERROR_MESSAGES, HTTP_STATUS } from '#constants';
-import {
-  BadRequestException,
-  ConflictException,
-  UnauthorizedException,
-} from '#errors';
-import { userRepository } from '#repositories';
-import { hashPassword, verifyPassword } from '#auth/password.js';
-import { issueToken } from '#auth/token.js';
+import { BadRequestException } from '#errors';
+import { authService } from '#services';
 
 export const authRouter = express.Router();
 
@@ -45,54 +39,38 @@ const signInSchema = z.object({
   password: z.string().min(1, '비밀번호가 필요합니다.'),
 });
 
+const refreshSchema = z.object({
+  refreshToken: z.string().min(1, ERROR_MESSAGES.REFRESH_TOKEN_MISSING),
+});
+
+const googleSchema = z.object({
+  code: z.string().min(1, ERROR_MESSAGES.GOOGLE_LOGIN_FAILED),
+});
+
 authRouter.post('/signUp', async (req, res) => {
   const { email, nickname, password } = parsePayload(signUpSchema, req.body);
+  const data = await authService.signUp({ email, nickname, password });
 
-  const existingEmail = await userRepository.findByEmail(email);
-  if (existingEmail) {
-    throw new ConflictException(ERROR_MESSAGES.EMAIL_ALREADY_TAKEN);
-  }
-
-  const existingNickname = await userRepository.findByNickname(nickname);
-  if (existingNickname) {
-    throw new ConflictException(ERROR_MESSAGES.NICKNAME_ALREADY_TAKEN);
-  }
-
-  const encryptedPassword = await hashPassword(password);
-
-  const user = await userRepository.create({
-    email,
-    nickname,
-    image: null,
-    encryptedPassword,
-  });
-
-  const accessToken = issueToken(user);
-
-  return res.status(HTTP_STATUS.CREATED).json({
-    success: true,
-    data: { accessToken },
-  });
+  return res.status(HTTP_STATUS.CREATED).json({ success: true, data });
 });
 
 authRouter.post('/signIn', async (req, res) => {
   const { email, password } = parsePayload(signInSchema, req.body);
+  const data = await authService.signIn({ email, password });
 
-  const user = await userRepository.findByEmail(email);
+  return res.status(HTTP_STATUS.OK).json({ success: true, data });
+});
 
-  if (!user) {
-    throw new UnauthorizedException(ERROR_MESSAGES.EMAIL_OR_PASSWORD_INVALID);
-  }
+authRouter.post('/refresh', async (req, res) => {
+  const { refreshToken } = parsePayload(refreshSchema, req.body);
+  const data = await authService.refresh(refreshToken);
 
-  const passwordValid = await verifyPassword(password, user.encryptedPassword);
-  if (!passwordValid) {
-    throw new UnauthorizedException(ERROR_MESSAGES.EMAIL_OR_PASSWORD_INVALID);
-  }
+  return res.status(HTTP_STATUS.OK).json({ success: true, data });
+});
 
-  const accessToken = issueToken(user);
+authRouter.post('/google', async (req, res) => {
+  const { code } = parsePayload(googleSchema, req.body);
+  const data = await authService.signInWithGoogle({ code });
 
-  return res.status(HTTP_STATUS.OK).json({
-    success: true,
-    data: { accessToken },
-  });
+  return res.status(HTTP_STATUS.OK).json({ success: true, data });
 });
