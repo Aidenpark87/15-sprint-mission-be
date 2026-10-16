@@ -1,3 +1,4 @@
+import multer from 'multer';
 import { isDevelopment } from '#config';
 import { HTTP_STATUS, PRISMA_ERROR } from '#constants';
 import { HttpException } from '#errors';
@@ -25,6 +26,18 @@ export const errorHandler = (error, _req, res, next) => {
       ...(error.details ?? {}),
       success: false,
       message: error.message,
+    });
+  }
+
+  if (error instanceof multer.MulterError) {
+    const message =
+      error.code === 'LIMIT_FILE_SIZE'
+        ? '이미지는 10MB 이하만 업로드할 수 있어요'
+        : '이미지 업로드에 실패했어요';
+
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      message,
     });
   }
 

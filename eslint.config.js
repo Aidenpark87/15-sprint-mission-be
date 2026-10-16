@@ -13,6 +13,8 @@ export default [
         console: 'readonly',
         process: 'readonly',
         URL: 'readonly',
+        URLSearchParams: 'readonly',
+        fetch: 'readonly',
       },
     },
     rules: {
@@ -25,6 +27,7 @@ export default [
         },
       ],
       'no-console': 'off',
+      'no-empty': ['error', { allowEmptyCatch: true }],
       'prefer-const': 'error',
       'no-var': 'error',
     },
