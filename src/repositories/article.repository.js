@@ -1,13 +1,30 @@
 import { prisma } from '#db/prisma.js';
 
+function toArticleView(article, userId) {
+  const { likes, ...rest } = article;
+
+  return {
+    ...rest,
+    isLiked:
+      userId != null && Array.isArray(likes)
+        ? likes.some((like) => like.userId === userId)
+        : false,
+  };
+}
+
 function create(data) {
   return prisma.article.create({ data });
 }
 
-function findById(articleId) {
-  return prisma.article.findUnique({
+async function findById(articleId, userId = null) {
+  const article = await prisma.article.findUnique({
     where: { id: Number(articleId) },
+    include: {
+      ...(userId != null && { likes: { where: { userId }, select: { userId: true } } }),
+    },
   });
+
+  return article ? toArticleView(article, userId) : null;
 }
 
 const SORT_ORDER_BY = {
@@ -16,7 +33,7 @@ const SORT_ORDER_BY = {
   oldest: [{ createdAt: 'asc' }, { id: 'asc' }],
 };
 
-async function findAll({ offset = 0, limit = 10, keyword = '', sort = 'recent' } = {}) {
+async function findAll({ offset = 0, limit = 10, keyword = '', sort = 'recent', userId = null } = {}) {
   const where = keyword
     ? {
         OR: [
@@ -36,15 +53,17 @@ async function findAll({ offset = 0, limit = 10, keyword = '', sort = 'recent' }
         id: true,
         title: true,
         content: true,
+        images: true,
         likeCount: true,
         author: true,
         createdAt: true,
+        ...(userId != null && { likes: { where: { userId }, select: { userId: true } } }),
       },
     }),
     prisma.article.count({ where }),
   ]);
 
-  return { list, totalCount };
+  return { list: list.map((row) => toArticleView(row, userId)), totalCount };
 }
 
 function update(articleId, data) {
