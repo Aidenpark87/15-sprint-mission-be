@@ -3,12 +3,13 @@ import { prisma } from '#db/prisma.js';
 const DEFAULT_OWNER_NICKNAME = '판다마켓';
 
 function toProductView(product, userId) {
-  const { owner, likes, ...rest } = product;
+  const { owner, likes, favoriteCount, ...rest } = product;
 
   return {
     ...rest,
     ownerNickname: owner?.nickname ?? DEFAULT_OWNER_NICKNAME,
-    isFavorite: userId != null ? likes.some((like) => like.userId === userId) : false,
+    likeCount: favoriteCount,
+    isLiked: userId != null ? likes.some((like) => like.userId === userId) : false,
   };
 }
 
@@ -16,6 +17,7 @@ const SORT_ORDER_BY = {
   recent: [{ createdAt: 'desc' }, { id: 'desc' }],
   oldest: [{ createdAt: 'asc' }, { id: 'asc' }],
   favorite: [{ favoriteCount: 'desc' }, { id: 'desc' }],
+  like: [{ favoriteCount: 'desc' }, { id: 'desc' }],
 };
 
 function create(data) {
@@ -27,6 +29,11 @@ async function findById(productId, userId = null) {
     where: { id: Number(productId) },
     include: {
       owner: { select: { nickname: true } },
+      comments: {
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        include: { author: { select: { nickname: true, id: true } } },
+      },
       ...(userId != null && { likes: { where: { userId }, select: { userId: true } } }),
     },
   });
@@ -54,6 +61,7 @@ async function findAll({ offset = 0, limit = 10, keyword = '', sort = 'recent', 
         id: true,
         name: true,
         price: true,
+        images: true,
         favoriteCount: true,
         createdAt: true,
         owner: { select: { nickname: true } },
