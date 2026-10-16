@@ -1,17 +1,14 @@
 import express from 'express';
 import { ERROR_MESSAGES, HTTP_STATUS } from '#constants';
+import { BadRequestException } from '#errors';
 import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
-  NotFoundException,
-} from '#errors';
-import {
-  commentRepository,
-  likeRepository,
-  productRepository,
-} from '#repositories';
-import { requireAuth, optionalAuth } from '#middlewares';
+  optionalAuth,
+  requireAuth,
+  validateComment,
+  validateProduct,
+  validateProductUpdate,
+} from '#middlewares';
+import { commentService, productService } from '#services';
 import {
   parseCursorQuery,
   parseIdParam,
@@ -20,181 +17,121 @@ import {
 
 export const productsRouter = express.Router();
 
-async function getProductForOwner(productId, user) {
-  const product = await productRepository.findById(productId);
-  if (!product) {
-    throw new NotFoundException(ERROR_MESSAGES.PRODUCT_NOT_FOUND);
-  }
+productsRouter
+  .route('/')
+  .get(optionalAuth, async (req, res) => {
+    const { offset, limit, keyword, sort } = parseListQuery(req.query, {
+      allowedSorts: ['recent', 'oldest', 'favorite', 'like'],
+    });
 
-  if (product.ownerId !== user.id) {
-    throw new ForbiddenException(ERROR_MESSAGES.PRODUCT_FORBIDDEN_OWNER);
-  }
+    const data = await productService.list({
+      offset,
+      limit,
+      keyword,
+      sort,
+      userId: req.user?.id ?? null,
+    });
 
-  return product;
-}
+    return res.status(HTTP_STATUS.OK).json({ success: true, data });
+  })
+  .post(requireAuth, validateProduct, async (req, res) => {
+    const { name, description, price, tags, images } = req.body ?? {};
 
-productsRouter.post('/', requireAuth, async (req, res) => {
-  const { name, description, price, tags } = req.body ?? {};
+    const data = await productService.create({
+      name,
+      description,
+      price,
+      tags,
+      images,
+      userId: req.user.id,
+    });
 
-  if (!name || !description || price == null) {
-    throw new BadRequestException(ERROR_MESSAGES.PRODUCT_REQUIRED_FIELDS);
-  }
-
-  const product = await productRepository.create({
-    name,
-    description,
-    price: Number(price),
-    tags: Array.isArray(tags) ? tags : [],
-    ownerId: req.user.id,
+    return res.status(HTTP_STATUS.CREATED).json({ success: true, data });
   });
 
-  const data = await productRepository.findById(product.id, req.user.id);
+productsRouter
+  .route('/:productId')
+  .get(optionalAuth, async (req, res) => {
+    const productId = parseIdParam(req.params.productId);
 
-  return res.status(HTTP_STATUS.CREATED).json({ success: true, data });
-});
+    const data = await productService.getDetail(
+      productId,
+      req.user?.id ?? null,
+    );
 
-productsRouter.get('/', optionalAuth, async (req, res) => {
+    return res.status(HTTP_STATUS.OK).json({ success: true, data });
+  })
+  .patch(requireAuth, validateProductUpdate, async (req, res) => {
+    const productId = parseIdParam(req.params.productId);
+    const { name, description, price, tags, images } = req.body ?? {};
 
-  const { offset, limit, keyword, sort } = parseListQuery(req.query, {
-    allowedSorts: ['recent', 'oldest', 'favorite'],
+    if (
+      name == null &&
+      description == null &&
+      price == null &&
+      tags == null &&
+      images == null
+    ) {
+      throw new BadRequestException(ERROR_MESSAGES.UPDATE_PRODUCT_REQUIRED);
+    }
+
+    const data = await productService.update(productId, req.user, {
+      name,
+      description,
+      price,
+      tags,
+      images,
+    });
+
+    return res.status(HTTP_STATUS.OK).json({ success: true, data });
+  })
+  .delete(requireAuth, async (req, res) => {
+    const productId = parseIdParam(req.params.productId);
+
+    await productService.remove(productId, req.user);
+
+    return res.sendStatus(HTTP_STATUS.NO_CONTENT);
   });
 
-  const data = await productRepository.findAll({
-    offset,
-    limit,
-    keyword,
-    sort,
-    userId: req.user?.id ?? null,
+productsRouter
+  .route('/:productId/like')
+  .post(requireAuth, async (req, res) => {
+    const productId = parseIdParam(req.params.productId);
+
+    const data = await productService.like(productId, req.user);
+
+    return res.status(HTTP_STATUS.OK).json({ success: true, data });
+  })
+  .delete(requireAuth, async (req, res) => {
+    const productId = parseIdParam(req.params.productId);
+
+    const data = await productService.unlike(productId, req.user);
+
+    return res.status(HTTP_STATUS.OK).json({ success: true, data });
   });
 
-  return res.status(HTTP_STATUS.OK).json({ success: true, data });
-});
+productsRouter
+  .route('/:productId/comments')
+  .post(requireAuth, validateComment, async (req, res) => {
+    const productId = parseIdParam(req.params.productId);
+    const { content } = req.body ?? {};
 
-productsRouter.get('/:productId', optionalAuth, async (req, res) => {
-  const productId = parseIdParam(req.params.productId);
+    const data = await commentService.createForProduct({
+      productId,
+      content,
+      user: req.user,
+    });
 
-  const product = await productRepository.findById(productId, req.user?.id ?? null);
-  if (!product) {
-    throw new NotFoundException(ERROR_MESSAGES.PRODUCT_NOT_FOUND);
-  }
+    return res.status(HTTP_STATUS.CREATED).json({ success: true, data });
+  })
+  .get(async (req, res) => {
+    const productId = parseIdParam(req.params.productId);
+    const { limit, cursor } = parseCursorQuery(req.query);
 
-  return res.status(HTTP_STATUS.OK).json({ success: true, data: product });
-});
+    const data = await commentService.listByProduct(productId, {
+      cursor,
+      limit,
+    });
 
-productsRouter.patch('/:productId', requireAuth, async (req, res) => {
-  const productId = parseIdParam(req.params.productId);
-  const { name, description, price, tags } = req.body ?? {};
-
-  if (name == null && description == null && price == null && tags == null) {
-    throw new BadRequestException(ERROR_MESSAGES.UPDATE_PRODUCT_REQUIRED);
-  }
-
-  await getProductForOwner(productId, req.user);
-
-  await productRepository.update(productId, {
-    ...(name != null && { name }),
-    ...(description != null && { description }),
-    ...(price != null && { price: Number(price) }),
-    ...(tags != null && { tags }),
+    return res.status(HTTP_STATUS.OK).json({ success: true, data });
   });
-
-  const data = await productRepository.findById(productId, req.user.id);
-
-  return res.status(HTTP_STATUS.OK).json({ success: true, data });
-});
-
-productsRouter.delete('/:productId', requireAuth, async (req, res) => {
-  const productId = parseIdParam(req.params.productId);
-
-  await getProductForOwner(productId, req.user);
-
-  await productRepository.remove(productId);
-
-  return res.sendStatus(HTTP_STATUS.NO_CONTENT);
-});
-
-productsRouter.post('/:productId/favorite', requireAuth, async (req, res) => {
-  const productId = parseIdParam(req.params.productId);
-
-  const product = await productRepository.findById(productId);
-  if (!product) {
-    throw new NotFoundException(ERROR_MESSAGES.PRODUCT_NOT_FOUND);
-  }
-
-  const existing = await likeRepository.findByUserAndProduct({
-    userId: req.user.id,
-    productId,
-  });
-  if (existing) {
-    throw new ConflictException(ERROR_MESSAGES.FAVORITE_ALREADY_EXISTS);
-  }
-
-  await likeRepository.create({ userId: req.user.id, productId });
-
-  const data = await productRepository.findById(productId, req.user.id);
-
-  return res.status(HTTP_STATUS.OK).json({ success: true, data });
-});
-
-productsRouter.delete('/:productId/favorite', requireAuth, async (req, res) => {
-  const productId = parseIdParam(req.params.productId);
-
-  const product = await productRepository.findById(productId);
-  if (!product) {
-    throw new NotFoundException(ERROR_MESSAGES.PRODUCT_NOT_FOUND);
-  }
-
-  const existing = await likeRepository.findByUserAndProduct({
-    userId: req.user.id,
-    productId,
-  });
-  if (!existing) {
-    throw new NotFoundException(ERROR_MESSAGES.FAVORITE_NOT_FOUND);
-  }
-
-  await likeRepository.remove({ userId: req.user.id, productId });
-
-  const data = await productRepository.findById(productId, req.user.id);
-
-  return res.status(HTTP_STATUS.OK).json({ success: true, data });
-});
-
-productsRouter.post('/:productId/comments', requireAuth, async (req, res) => {
-  const productId = parseIdParam(req.params.productId);
-  const { content } = req.body ?? {};
-
-  if (!content) {
-    throw new BadRequestException(ERROR_MESSAGES.COMMENT_REQUIRED_FIELDS);
-  }
-
-  const product = await productRepository.findById(productId);
-  if (!product) {
-    throw new NotFoundException(ERROR_MESSAGES.PRODUCT_COMMENT_TARGET_MISSING);
-  }
-
-  const comment = await commentRepository.create({
-    content,
-    productId,
-    authorId: req.user.id,
-  });
-
-  return res.status(HTTP_STATUS.CREATED).json({ success: true, data: comment });
-});
-
-productsRouter.get('/:productId/comments', async (req, res) => {
-  const productId = parseIdParam(req.params.productId);
-  const { limit, cursor } = parseCursorQuery(req.query);
-
-  const product = await productRepository.findById(productId);
-  if (!product) {
-    throw new NotFoundException(ERROR_MESSAGES.PRODUCT_COMMENT_TARGET_MISSING);
-  }
-
-  const data = await commentRepository.findAllByParent({
-    productId,
-    cursor,
-    limit,
-  });
-
-  return res.status(HTTP_STATUS.OK).json({ success: true, data });
-});

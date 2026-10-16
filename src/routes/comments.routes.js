@@ -1,62 +1,25 @@
 import express from 'express';
-import { ERROR_MESSAGES, HTTP_STATUS } from '#constants';
-import {
-  BadRequestException,
-  ForbiddenException,
-  NotFoundException,
-  UnauthorizedException,
-} from '#errors';
-import { commentRepository } from '#repositories';
-import { optionalAuth } from '#middlewares';
+import { HTTP_STATUS } from '#constants';
+import { optionalAuth, validateCommentUpdate } from '#middlewares';
+import { commentService } from '#services';
 import { parseIdParam } from './query-parsers.js';
 
 export const commentsRouter = express.Router();
 
-function assertProductCommentOwner(req, comment) {
-  if (comment.articleId != null) {
-    return;
-  }
+commentsRouter
+  .route('/:commentId')
+  .patch(optionalAuth, validateCommentUpdate, async (req, res) => {
+    const commentId = parseIdParam(req.params.commentId);
+    const { content } = req.body ?? {};
 
-  if (!req.user) {
-    throw new UnauthorizedException(ERROR_MESSAGES.ACCESS_TOKEN_MISSING);
-  }
+    const data = await commentService.update(commentId, req.user, content);
 
-  if (comment.authorId !== req.user.id) {
-    throw new ForbiddenException(ERROR_MESSAGES.COMMENT_FORBIDDEN_OWNER);
-  }
-}
+    return res.status(HTTP_STATUS.OK).json({ success: true, data });
+  })
+  .delete(optionalAuth, async (req, res) => {
+    const commentId = parseIdParam(req.params.commentId);
 
-commentsRouter.patch('/:commentId', optionalAuth, async (req, res) => {
-  const commentId = parseIdParam(req.params.commentId);
-  const { content } = req.body ?? {};
+    await commentService.remove(commentId, req.user);
 
-  if (!content) {
-    throw new BadRequestException(ERROR_MESSAGES.UPDATE_COMMENT_REQUIRED);
-  }
-
-  const comment = await commentRepository.findWithAuthor(commentId);
-  if (!comment) {
-    throw new NotFoundException(ERROR_MESSAGES.COMMENT_NOT_FOUND);
-  }
-
-  assertProductCommentOwner(req, comment);
-
-  const updated = await commentRepository.update(commentId, { content });
-
-  return res.status(HTTP_STATUS.OK).json({ success: true, data: updated });
-});
-
-commentsRouter.delete('/:commentId', optionalAuth, async (req, res) => {
-  const commentId = parseIdParam(req.params.commentId);
-
-  const comment = await commentRepository.findWithAuthor(commentId);
-  if (!comment) {
-    throw new NotFoundException(ERROR_MESSAGES.COMMENT_NOT_FOUND);
-  }
-
-  assertProductCommentOwner(req, comment);
-
-  await commentRepository.remove(commentId);
-
-  return res.sendStatus(HTTP_STATUS.NO_CONTENT);
-});
+    return res.sendStatus(HTTP_STATUS.NO_CONTENT);
+  });
