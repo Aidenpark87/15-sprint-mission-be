@@ -49,6 +49,7 @@ const LikeScalarFieldEnum = {
   id: "id",
   userId: "userId",
   productId: "productId",
+  articleId: "articleId",
   createdAt: "createdAt"
 };
 const ProductScalarFieldEnum = {
@@ -67,8 +68,10 @@ const ArticleScalarFieldEnum = {
   id: "id",
   title: "title",
   content: "content",
+  images: "images",
   likeCount: "likeCount",
   author: "author",
+  authorId: "authorId",
   createdAt: "createdAt",
   updatedAt: "updatedAt"
 };

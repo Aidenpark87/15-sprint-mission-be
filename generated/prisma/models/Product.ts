@@ -439,9 +439,9 @@ export type ProductOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
 }
 
-export type ProductScalarRelationFilter = {
-  is?: Prisma.ProductWhereInput
-  isNot?: Prisma.ProductWhereInput
+export type ProductNullableScalarRelationFilter = {
+  is?: Prisma.ProductWhereInput | null
+  isNot?: Prisma.ProductWhereInput | null
 }
 
 export type StringNullableListFilter<$PrismaModel = never> = {
@@ -501,11 +501,6 @@ export type ProductSumOrderByAggregateInput = {
   favoriteCount?: Prisma.SortOrder
 }
 
-export type ProductNullableScalarRelationFilter = {
-  is?: Prisma.ProductWhereInput | null
-  isNot?: Prisma.ProductWhereInput | null
-}
-
 export type ProductCreateNestedManyWithoutOwnerInput = {
   create?: Prisma.XOR<Prisma.ProductCreateWithoutOwnerInput, Prisma.ProductUncheckedCreateWithoutOwnerInput> | Prisma.ProductCreateWithoutOwnerInput[] | Prisma.ProductUncheckedCreateWithoutOwnerInput[]
   connectOrCreate?: Prisma.ProductCreateOrConnectWithoutOwnerInput | Prisma.ProductCreateOrConnectWithoutOwnerInput[]
@@ -554,10 +549,12 @@ export type ProductCreateNestedOneWithoutLikesInput = {
   connect?: Prisma.ProductWhereUniqueInput
 }
 
-export type ProductUpdateOneRequiredWithoutLikesNestedInput = {
+export type ProductUpdateOneWithoutLikesNestedInput = {
   create?: Prisma.XOR<Prisma.ProductCreateWithoutLikesInput, Prisma.ProductUncheckedCreateWithoutLikesInput>
   connectOrCreate?: Prisma.ProductCreateOrConnectWithoutLikesInput
   upsert?: Prisma.ProductUpsertWithoutLikesInput
+  disconnect?: Prisma.ProductWhereInput | boolean
+  delete?: Prisma.ProductWhereInput | boolean
   connect?: Prisma.ProductWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.ProductUpdateToOneWithWhereWithoutLikesInput, Prisma.ProductUpdateWithoutLikesInput>, Prisma.ProductUncheckedUpdateWithoutLikesInput>
 }
@@ -578,14 +575,6 @@ export type ProductUpdatetagsInput = {
 export type ProductUpdateimagesInput = {
   set?: string[]
   push?: string | string[]
-}
-
-export type NullableIntFieldUpdateOperationsInput = {
-  set?: number | null
-  increment?: number
-  decrement?: number
-  multiply?: number
-  divide?: number
 }
 
 export type ProductCreateNestedOneWithoutCommentsInput = {
