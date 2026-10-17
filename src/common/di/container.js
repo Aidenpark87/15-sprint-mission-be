@@ -1,3 +1,10 @@
+import {
+  asClass,
+  asValue,
+  createContainer as createAwilixContainer,
+  InjectionMode,
+  Lifetime,
+} from 'awilix';
 import { config } from '#config';
 import { db } from '#prisma/db.js';
 import {
@@ -26,58 +33,41 @@ import { GoogleProvider, PasswordProvider, TokenProvider } from '#providers';
 import { AuthMiddleware } from '#middlewares';
 
 export const createContainer = () => {
-  const userRepository = new UserRepository({ db });
-  const productRepository = new ProductRepository({ db });
-  const articleRepository = new ArticleRepository({ db });
-  const commentRepository = new CommentRepository({ db });
-  const likeRepository = new LikeRepository({ db });
-
-  const passwordProvider = new PasswordProvider();
-  const tokenProvider = new TokenProvider({ config });
-  const googleProvider = new GoogleProvider({ config });
-
-  const authService = new AuthService({
-    userRepository,
-    passwordProvider,
-    tokenProvider,
-    googleProvider,
-  });
-  const productService = new ProductService({ productRepository, likeRepository });
-  const articleService = new ArticleService({ articleRepository, likeRepository });
-  const commentService = new CommentService({
-    articleRepository,
-    commentRepository,
-    productRepository,
+  const container = createAwilixContainer({
+    injectionMode: InjectionMode.PROXY,
+    strict: true,
   });
 
-  const authMiddleware = new AuthMiddleware({ userRepository, tokenProvider });
+  container.register({
+    config: asValue(config),
+    db: asValue(db),
 
-  const productController = new ProductController({
-    productService,
-    commentService,
-    authMiddleware,
-  });
-  const articleController = new ArticleController({
-    articleService,
-    commentService,
-    authMiddleware,
-  });
-  const commentController = new CommentController({
-    commentService,
-    authMiddleware,
-  });
-  const authController = new AuthController({ authService });
-  const userController = new UserController({ authMiddleware });
-  const imageController = new ImageController();
+    userRepository: asClass(UserRepository, { lifetime: Lifetime.SINGLETON }),
+    productRepository: asClass(ProductRepository, { lifetime: Lifetime.SINGLETON }),
+    articleRepository: asClass(ArticleRepository, { lifetime: Lifetime.SINGLETON }),
+    commentRepository: asClass(CommentRepository, { lifetime: Lifetime.SINGLETON }),
+    likeRepository: asClass(LikeRepository, { lifetime: Lifetime.SINGLETON }),
 
-  const controller = new Controller({
-    productController,
-    articleController,
-    commentController,
-    authController,
-    userController,
-    imageController,
+    passwordProvider: asClass(PasswordProvider, { lifetime: Lifetime.SINGLETON }),
+    tokenProvider: asClass(TokenProvider, { lifetime: Lifetime.SINGLETON }),
+    googleProvider: asClass(GoogleProvider, { lifetime: Lifetime.SINGLETON }),
+
+    authService: asClass(AuthService, { lifetime: Lifetime.SINGLETON }),
+    productService: asClass(ProductService, { lifetime: Lifetime.SINGLETON }),
+    articleService: asClass(ArticleService, { lifetime: Lifetime.SINGLETON }),
+    commentService: asClass(CommentService, { lifetime: Lifetime.SINGLETON }),
+
+    authMiddleware: asClass(AuthMiddleware, { lifetime: Lifetime.SINGLETON }),
+
+    productController: asClass(ProductController, { lifetime: Lifetime.SINGLETON }),
+    articleController: asClass(ArticleController, { lifetime: Lifetime.SINGLETON }),
+    commentController: asClass(CommentController, { lifetime: Lifetime.SINGLETON }),
+    authController: asClass(AuthController, { lifetime: Lifetime.SINGLETON }),
+    userController: asClass(UserController, { lifetime: Lifetime.SINGLETON }),
+    imageController: asClass(ImageController, { lifetime: Lifetime.SINGLETON }),
+
+    controller: asClass(Controller, { lifetime: Lifetime.SINGLETON }),
   });
 
-  return { controller, authMiddleware, config, db };
+  return container.cradle;
 };
