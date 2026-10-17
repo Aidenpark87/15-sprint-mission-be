@@ -28,6 +28,8 @@
     "migration:status": "dotenv -e ./env/.env.development -- npx prisma migration status",
     "seed": "node --env-file=./env/.env.development ./scripts/seed.js --allow-reset=panda_market",
     "seed:insert": "node --env-file=./env/.env.development ./scripts/seed.js --no-reset",
+    "verify:api": "node --env-file=./env/.env.development ./scripts/verify-api.js",
+    "verify": "pnpm lint && pnpm db:verify && pnpm verify:api",
     "start": "node ./src/main.js",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
