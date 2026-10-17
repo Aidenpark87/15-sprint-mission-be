@@ -1,8 +1,7 @@
 import multer from 'multer';
 import { isDevelopment } from '#config';
-import { HTTP_STATUS, PRISMA_ERROR } from '#constants';
+import { DB_ERROR, HTTP_STATUS } from '#constants';
 import { HttpException } from '#exceptions';
-import { Prisma } from '#generated/prisma/client.js';
 
 export const errorHandler = (error, _req, res, next) => {
   if (res.headersSent) {
@@ -41,15 +40,8 @@ export const errorHandler = (error, _req, res, next) => {
     });
   }
 
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    switch (error.code) {
-      case PRISMA_ERROR.UNIQUE_CONSTRAINT: {
-        return res.status(HTTP_STATUS.CONFLICT).json();
-      }
-      case PRISMA_ERROR.RECORD_NOT_FOUND: {
-        return res.status(HTTP_STATUS.NOT_FOUND).json();
-      }
-    }
+  if (error.sqlState === DB_ERROR.UNIQUE_VIOLATION) {
+    return res.status(HTTP_STATUS.CONFLICT).json();
   }
 
   const result = {

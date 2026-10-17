@@ -44,10 +44,10 @@ export function assertSafeSeedInsertTarget({ databaseUrl }) {
   return true;
 }
 
-export function resetPandaMarketData(prisma) {
-  return prisma.$transaction([
-    prisma.comment.deleteMany(),
-    prisma.article.deleteMany(),
-    prisma.product.deleteMany(),
-  ]);
+export async function resetPandaMarketData(db) {
+  return db.transaction(async (tx) => {
+    await tx.orm.public.Comment.select('id').deleteAll();
+    await tx.orm.public.Article.select('id').deleteAll();
+    await tx.orm.public.Product.select('id').deleteAll();
+  });
 }

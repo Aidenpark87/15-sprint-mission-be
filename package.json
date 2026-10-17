@@ -19,14 +19,14 @@
     "#services": "./src/services/index.js"
   },
   "scripts": {
-    "postinstall": "prisma generate",
     "dev": "nodemon --env-file=./env/.env.development ./src/main.js",
-    "prisma:reset": "dotenv -e ./env/.env.development -- npx prisma migrate reset",
-    "prisma:generate": "dotenv -e ./env/.env.development -- npx prisma generate",
-    "prisma:migrate": "dotenv -e ./env/.env.development -- npx prisma migrate dev",
-    "prisma:migrate:deploy": "prisma migrate deploy",
-    "prisma:studio": "dotenv -e ./env/.env.development -- npx prisma studio",
-    "build:prisma": "pnpm prisma:generate && esbuild \"generated/prisma/**/*.ts\" --outdir=generated/prisma --format=esm --platform=node --log-level=warning",
+    "contract:infer": "dotenv -e ./env/.env.development -- npx prisma contract infer --output ./src/prisma/contract.prisma",
+    "contract:emit": "dotenv -e ./env/.env.development -- npx prisma contract emit",
+    "db:sign": "dotenv -e ./env/.env.development -- npx prisma db sign",
+    "db:verify": "dotenv -e ./env/.env.development -- npx prisma db verify",
+    "migration:plan": "dotenv -e ./env/.env.development -- npx prisma migration plan",
+    "db:migrate": "dotenv -e ./env/.env.development -- npx prisma db migrate --advance-ref db",
+    "migration:status": "dotenv -e ./env/.env.development -- npx prisma migration status",
     "seed": "node --env-file=./env/.env.development ./scripts/seed.js --allow-reset=panda_market",
     "seed:insert": "node --env-file=./env/.env.development ./scripts/seed.js --no-reset",
     "start": "node ./src/main.js",
@@ -40,8 +40,7 @@
   },
   "packageManager": "pnpm@12.5.1",
   "dependencies": {
-    "@prisma/adapter-pg": "^7.10.0",
-    "@prisma/client": "^7.10.0",
+    "@prisma/orm-postgres": "8.0.0-rc.18",
     "awilix": "^13.0.5",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
@@ -49,7 +48,6 @@
     "heic-convert": "^2.1.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.4.0",
-    "pg": "^8.23.0",
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",
     "zod": "^4.4.3"
@@ -57,13 +55,12 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@faker-js/faker": "^10.6.0",
-    "@vercel/functions": "^3.9.9",
     "dotenv-cli": "^11.0.0",
     "esbuild": "^0.28.2",
     "eslint": "^10.8.1",
     "nodemon": "^3.1.14",
     "prettier": "^3.9.6",
-    "prisma": "^7.10.0"
+    "prisma": "^8.0.0-rc.23"
   },
   "allowScripts": {
     "@prisma/engines@7.10.0": true,

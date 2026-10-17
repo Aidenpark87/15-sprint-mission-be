@@ -1,6 +1,5 @@
 import { faker } from '@faker-js/faker';
-import { PrismaClient } from '#generated/prisma/client.js';
-import { PrismaPg } from '@prisma/adapter-pg';
+import { db } from '#prisma/db.js';
 import {
   assertSafeSeedInsertTarget,
   assertSafeSeedTarget,
@@ -187,6 +186,9 @@ const pickMultiple = (pool, min, max) =>
     .shuffle(pool)
     .slice(0, faker.number.int({ min, max: Math.min(max, pool.length) }));
 
+const toTimestampString = (date) =>
+  date.toISOString().slice(0, 23).replace('T', ' ');
+
 const makeProductInput = (_, index) => ({
   name: `${KOREAN_PRODUCT_POOL[index % KOREAN_PRODUCT_POOL.length]}${pick(PRODUCT_SUFFIX_POOL)}`,
   description: pickMultiple(KOREAN_PRODUCT_DESCRIPTIONS, 1, 2).join(' '),
@@ -204,16 +206,20 @@ const makeArticleInput = () => ({
   likeCount: faker.number.int({ min: 0, max: 300 }),
 
   author: pick(ARTICLE_AUTHOR_POOL),
-  createdAt: faker.date.between({ from: SEED_DATE_FROM, to: SEED_DATE_TO }),
+  createdAt: toTimestampString(
+    faker.date.between({ from: SEED_DATE_FROM, to: SEED_DATE_TO }),
+  ),
 });
 
 const makeCommentInput = () => ({
   content: pick(COMMENT_SENTENCES),
 
-  createdAt: faker.date.between({ from: SEED_DATE_FROM, to: SEED_DATE_TO }),
+  createdAt: toTimestampString(
+    faker.date.between({ from: SEED_DATE_FROM, to: SEED_DATE_TO }),
+  ),
 });
 
-async function seed(prisma) {
+async function seed(database) {
   const productData = Array.from(
     { length: NUM_PRODUCTS_TO_CREATE },
     makeProductInput,
@@ -223,12 +229,8 @@ async function seed(prisma) {
     makeArticleInput,
   );
 
-  const products = await prisma.product.createManyAndReturn({
-    data: productData,
-  });
-  const articles = await prisma.article.createManyAndReturn({
-    data: articleData,
-  });
+  const products = await database.orm.public.Product.createAll(productData);
+  const articles = await database.orm.public.Article.createAll(articleData);
 
   const commentData = [];
   for (const product of products) {
@@ -242,7 +244,7 @@ async function seed(prisma) {
     }
   }
 
-  await prisma.comment.createMany({ data: commentData });
+  await database.orm.public.Comment.createAndCount(commentData);
 
   return {
     productCount: products.length,
@@ -251,7 +253,7 @@ async function seed(prisma) {
   };
 }
 
-async function main(prisma) {
+async function main(database) {
   const isInsertOnly = process.argv.includes('--no-reset');
 
   if (!isInsertOnly) {
@@ -261,40 +263,34 @@ async function main(prisma) {
       args: process.argv,
     });
 
-    await resetPandaMarketData(prisma);
+    await resetPandaMarketData(database);
   } else {
     assertSafeSeedInsertTarget({ databaseUrl: process.env.DATABASE_URL });
 
     const [productCount, articleCount, commentCount] = await Promise.all([
-      prisma.product.count(),
-      prisma.article.count(),
-      prisma.comment.count(),
+      database.orm.public.Product.aggregate((agg) => ({ total: agg.count() })),
+      database.orm.public.Article.aggregate((agg) => ({ total: agg.count() })),
+      database.orm.public.Comment.aggregate((agg) => ({ total: agg.count() })),
     ]);
 
-    if (productCount > 0 || articleCount > 0 || commentCount > 0) {
+    if (productCount.total > 0 || articleCount.total > 0 || commentCount.total > 0) {
       console.log('이미 시드된 데이터가 있어 건너뜁니다.');
       return;
     }
   }
 
-  const result = await seed(prisma);
+  const result = await seed(database);
 
   console.log(`${result.productCount}개의 상품이 생성되었습니다.`);
   console.log(`${result.articleCount}개의 게시글이 생성되었습니다.`);
   console.log(`${result.commentCount}개의 댓글이 생성되었습니다.`);
 }
 
-const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL,
-});
-
-const prisma = new PrismaClient({ adapter });
-
-main(prisma)
+main(db)
   .catch((error) => {
     console.error('시딩 오류:', error);
     process.exitCode = 1;
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    await db.close();
   });

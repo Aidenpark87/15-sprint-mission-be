@@ -6,22 +6,17 @@ export class CommentRepository {
   }
 
   create(data) {
-    return this.#db.comment.create({ data });
+    return this.#db.orm.public.Comment.create(data);
   }
 
   findById(commentId) {
-    return this.#db.comment.findUnique({
-      where: { id: Number(commentId) },
-    });
+    return this.#db.orm.public.Comment.where({ id: Number(commentId) }).first();
   }
 
   findWithAuthor(commentId) {
-    return this.#db.comment.findUnique({
-      where: { id: Number(commentId) },
-      include: {
-        author: { select: { id: true, nickname: true, image: true } },
-      },
-    });
+    return this.#db.orm.public.Comment.where({ id: Number(commentId) })
+      .include('author', (author) => author.select('id', 'nickname', 'image'))
+      .first();
   }
 
   async findAllByParent({
@@ -30,42 +25,40 @@ export class CommentRepository {
     cursor = null,
     limit = 10,
   } = {}) {
-    const where = {
-      ...(productId != null ? { productId: Number(productId) } : {}),
-      ...(articleId != null ? { articleId: Number(articleId) } : {}),
-      ...(cursor != null ? { id: { lt: Number(cursor) } } : {}),
-    };
+    let query = this.#db.orm.public.Comment;
 
-    const items = await this.#db.comment.findMany({
-      where,
-      take: limit + 1,
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      select: {
-        id: true,
-        content: true,
-        createdAt: true,
-        author: { select: { id: true, nickname: true, image: true } },
-      },
-    });
+    if (productId != null) {
+      query = query.where({ productId: Number(productId) });
+    }
+    if (articleId != null) {
+      query = query.where({ articleId: Number(articleId) });
+    }
+    if (cursor != null) {
+      query = query.where((comment) => comment.id.lt(Number(cursor)));
+    }
+
+    const items = await query
+      .orderBy((comment) => comment.createdAt.desc())
+      .orderBy((comment) => comment.id.desc())
+      .limit(limit + 1)
+      .include('author', (author) => author.select('id', 'nickname', 'image'))
+      .all();
 
     const hasNext = items.length > limit;
-    const list = (hasNext ? items.slice(0, limit) : items).map(this.#toCommentView);
-    const nextCursor = hasNext ? items[list.length].id : null;
+    const list = (hasNext ? items.slice(0, limit) : items).map(
+      this.#toCommentView,
+    );
+    const nextCursor = hasNext ? items[limit].id : null;
 
     return { list, nextCursor };
   }
 
   update(commentId, data) {
-    return this.#db.comment.update({
-      where: { id: Number(commentId) },
-      data,
-    });
+    return this.#db.orm.public.Comment.where({ id: Number(commentId) }).update(data);
   }
 
   remove(commentId) {
-    return this.#db.comment.delete({
-      where: { id: Number(commentId) },
-    });
+    return this.#db.orm.public.Comment.where({ id: Number(commentId) }).delete();
   }
 
   #toCommentView(comment) {

@@ -1,3 +1,15 @@
+import { or } from '@prisma/orm-postgres/orm-client';
+
+const LIST_FIELDS = [
+  'id',
+  'title',
+  'content',
+  'images',
+  'likeCount',
+  'author',
+  'createdAt',
+];
+
 export class ArticleRepository {
   #db;
 
@@ -6,64 +18,66 @@ export class ArticleRepository {
   }
 
   create(data) {
-    return this.#db.article.create({ data });
+    return this.#db.orm.public.Article.create(data);
   }
 
   async findById(articleId, userId = null) {
-    const article = await this.#db.article.findUnique({
-      where: { id: Number(articleId) },
-      include: {
-        ...(userId != null && { likes: { where: { userId }, select: { userId: true } } }),
-      },
-    });
+    let query = this.#db.orm.public.Article.where({ id: Number(articleId) });
+    if (userId != null) {
+      query = query.include('likes', (likes) =>
+        likes.where({ userId }).select('userId'),
+      );
+    }
 
+    const article = await query.first();
     return article ? this.#toArticleView(article, userId) : null;
   }
 
-  async findAll({ offset = 0, limit = 10, keyword = '', sort = 'recent', userId = null } = {}) {
-    const where = keyword
-      ? {
-          OR: [
-            { title: { contains: keyword, mode: 'insensitive' } },
-            { content: { contains: keyword, mode: 'insensitive' } },
-          ],
-        }
-      : {};
+  async findAll({
+    offset = 0,
+    limit = 10,
+    keyword = '',
+    sort = 'recent',
+    userId = null,
+  } = {}) {
+    const filtered = keyword
+      ? this.#db.orm.public.Article.where((article) =>
+          or(
+            article.title.ilike(`%${keyword}%`),
+            article.content.ilike(`%${keyword}%`),
+          ),
+        )
+      : this.#db.orm.public.Article;
 
-    const [list, totalCount] = await Promise.all([
-      this.#db.article.findMany({
-        where,
-        skip: offset,
-        take: limit,
-        orderBy: this.#sortOrderBy(sort),
-        select: {
-          id: true,
-          title: true,
-          content: true,
-          images: true,
-          likeCount: true,
-          author: true,
-          createdAt: true,
-          ...(userId != null && { likes: { where: { userId }, select: { userId: true } } }),
-        },
-      }),
-      this.#db.article.count({ where }),
+    let listQuery = filtered
+      .orderBy(this.#orderBy(sort))
+      .offset(offset)
+      .limit(limit)
+      .select(...LIST_FIELDS);
+
+    if (userId != null) {
+      listQuery = listQuery.include('likes', (likes) =>
+        likes.where({ userId }).select('userId'),
+      );
+    }
+
+    const [list, counted] = await Promise.all([
+      listQuery.all(),
+      filtered.aggregate((agg) => ({ total: agg.count() })),
     ]);
 
-    return { list: list.map((row) => this.#toArticleView(row, userId)), totalCount };
+    return {
+      list: list.map((row) => this.#toArticleView(row, userId)),
+      totalCount: counted.total,
+    };
   }
 
   update(articleId, data) {
-    return this.#db.article.update({
-      where: { id: Number(articleId) },
-      data,
-    });
+    return this.#db.orm.public.Article.where({ id: Number(articleId) }).update(data);
   }
 
   remove(articleId) {
-    return this.#db.article.delete({
-      where: { id: Number(articleId) },
-    });
+    return this.#db.orm.public.Article.where({ id: Number(articleId) }).delete();
   }
 
   #toArticleView(article, userId) {
@@ -78,13 +92,17 @@ export class ArticleRepository {
     };
   }
 
-  #sortOrderBy(sort) {
-    const sortOrderBy = {
-      recent: [{ createdAt: 'desc' }, { id: 'desc' }],
-      like: [{ likeCount: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
-      oldest: [{ createdAt: 'asc' }, { id: 'asc' }],
+  #orderBy(sort) {
+    const orderBy = {
+      recent: [(article) => article.createdAt.desc(), (article) => article.id.desc()],
+      like: [
+        (article) => article.likeCount.desc(),
+        (article) => article.createdAt.desc(),
+        (article) => article.id.desc(),
+      ],
+      oldest: [(article) => article.createdAt.asc(), (article) => article.id.asc()],
     };
 
-    return sortOrderBy[sort] ?? sortOrderBy.recent;
+    return orderBy[sort] ?? orderBy.recent;
   }
 }

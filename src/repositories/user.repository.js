@@ -1,11 +1,4 @@
-const PUBLIC_SELECT = {
-  id: true,
-  email: true,
-  nickname: true,
-  image: true,
-  createdAt: true,
-  updatedAt: true,
-};
+const PUBLIC_FIELDS = ['id', 'email', 'nickname', 'image', 'createdAt', 'updatedAt'];
 
 export class UserRepository {
   #db;
@@ -15,21 +8,20 @@ export class UserRepository {
   }
 
   create(data) {
-    return this.#db.user.create({ data });
+    return this.#db.orm.public.User.create(data);
   }
 
   findByEmail(email) {
-    return this.#db.user.findUnique({ where: { email } });
+    return this.#db.orm.public.User.where({ email }).first();
   }
 
   findByNickname(nickname) {
-    return this.#db.user.findUnique({ where: { nickname } });
+    return this.#db.orm.public.User.where({ nickname }).first();
   }
 
   findById(id) {
-    return this.#db.user.findUnique({
-      where: { id: Number(id) },
-      select: PUBLIC_SELECT,
-    });
+    return this.#db.orm.public.User.where({ id: Number(id) })
+      .select(...PUBLIC_FIELDS)
+      .first();
   }
 }
