@@ -10,10 +10,9 @@
 - [2. 빠른 시작 (설치·실행)](#sec-2)
 - [3. 한 번에 검증하기](#sec-3)
 - [4. 검증 항목 (무엇을 증명하나)](#sec-4)
-- [5. 검증하지 못하는 것 (한계)](#sec-5)
-- [6. 프로젝트 구조](#sec-6)
-- [7. 아키텍처 노트](#sec-7)
-- [8. 참고 자료](#sec-8)
+- [5. 프로젝트 구조](#sec-5)
+- [6. 아키텍처 노트](#sec-6)
+- [7. 참고 자료](#sec-7)
 
 <a id="sec-1"></a>
 ## 1. 기술 스택
@@ -95,16 +94,7 @@ pnpm verify:api --base=https://내-배포주소
 성공하면 마지막에 `결과: 51 통과 / 0 실패` 와 함께 **모든 검증을 통과했습니다.** 를 출력하고 종료 코드 0을 돌려줍니다.
 
 <a id="sec-5"></a>
-## 5. 검증하지 못하는 것 (한계)
-
-`pnpm verify` 로 자동 증명되지 않는 항목은 아래 3가지예요. 정직하게 남겨 둡니다.
-
-- **구글 OAuth 실 로그인**: `GOOGLE_CLIENT_ID/SECRET` 자격증명이 없으면 실측할 수 없습니다. 코드는 구현되어 있고, 미설정 시 `POST /api/auth/google` 이 **400과 안내 메시지**를 돌려주는 것까지만 검증합니다.
-- **프론트엔드(UI) 동작**: 좋아요 토글·이미지 타일·글자수 카운터 같은 화면 동작은 API가 아니라 UI 문제라, 스크린샷/GIF가 더 정확합니다.
-- **배포 환경(Vercel)**: 서버리스 런타임·실제 DB 연결은 `pnpm verify:api --base=https://배포주소` 로 확인할 수 있습니다.
-
-<a id="sec-6"></a>
-## 6. 프로젝트 구조
+## 5. 프로젝트 구조
 
 ```text
 backend/
@@ -150,8 +140,8 @@ backend/
 | `src/common/di/` | 각 클래스가 필요로 하는 의존성을 한 곳에서 만들어 넣어 줍니다. |
 | `src/prisma/` | Prisma 8 계약과 클라이언트. 계약을 고치면 `pnpm contract:emit` 을 다시 실행해요. |
 
-<a id="sec-7"></a>
-## 7. 아키텍처 노트
+<a id="sec-6"></a>
+## 6. 아키텍처 노트
 
 - **계층 구조**: `controllers → services → repositories → prisma(db)`. 각 계층은 생성자 주입으로만 연결되어 테스트·교체가 쉽습니다.
 - **의존성 주입(Awilix)**: `src/common/di/container.js` 에서 `asValue`/`asClass` 로 등록하고 `container.cradle` 을 돌려줍니다. 새 저장소를 추가하면 여기에 한 줄 등록하면 됩니다.
@@ -159,8 +149,8 @@ backend/
 - **타임존(UTC 고정)**: Prisma 7은 세션 타임존을 UTC로 고정해 `timestamp` 컬럼을 UTC로 저장했습니다. Prisma 8은 접속 세션 기본값을 쓰므로, `src/prisma/db.js` 에서 연결 옵션(`-c timezone=UTC`)으로 UTC를 유지해 기존 데이터와 기준을 맞췄습니다.
 - **좋아요 카운터**: PostgreSQL의 `update()` 에는 증가 연산자가 없어서, `db.transaction` 안에서 `db.raw.sql` 로 `likeCount = likeCount + 1` 을 원자적으로 처리합니다.
 
-<a id="sec-8"></a>
-## 8. 참고 자료
+<a id="sec-7"></a>
+## 7. 참고 자료
 
 - [Express 5 문서](https://expressjs.com/)
 - [Awilix 문서](https://github.com/jeffijoe/awilix)
