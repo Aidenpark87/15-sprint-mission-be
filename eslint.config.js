@@ -2,7 +2,7 @@ import js from '@eslint/js';
 
 export default [
   {
-    ignores: ['generated/**', '.vercel/**'],
+    ignores: ['.vercel/**'],
   },
   js.configs.recommended,
   {

@@ -1,0 +1,706 @@
+[
+  {
+    "id": "schema.public",
+    "label": "Create schema \"public\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Create schema \"public\"",
+        "sql": "CREATE SCHEMA IF NOT EXISTS \"public\"",
+        "params": []
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "table.Article",
+    "label": "Create table \"Article\"",
+    "summary": "Creates table \"Article\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Article"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Article\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Article\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Article\"",
+        "sql": "CREATE TABLE \"public\".\"Article\" (\n  \"author\" text,\n  \"authorId\" int4,\n  \"content\" text NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"images\" text[] DEFAULT '{}' NOT NULL,\n  \"likeCount\" int4 DEFAULT 0 NOT NULL,\n  \"title\" text NOT NULL,\n  \"updatedAt\" timestamp(3) NOT NULL,\n  CONSTRAINT \"Article_pkey\" PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Article\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Article\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.Comment",
+    "label": "Create table \"Comment\"",
+    "summary": "Creates table \"Comment\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Comment"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Comment\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Comment\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Comment\"",
+        "sql": "CREATE TABLE \"public\".\"Comment\" (\n  \"articleId\" int4,\n  \"authorId\" int4,\n  \"content\" text NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"productId\" int4,\n  \"updatedAt\" timestamp(3) NOT NULL,\n  CONSTRAINT \"Comment_pkey\" PRIMARY KEY (\"id\"),\n  CONSTRAINT \"chk_Comment_exactly_one_target\" CHECK ((((\"productId\" IS NOT NULL) AND (\"articleId\" IS NULL)) OR ((\"productId\" IS NULL) AND (\"articleId\" IS NOT NULL))))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Comment\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Comment\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.Like",
+    "label": "Create table \"Like\"",
+    "summary": "Creates table \"Like\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Like"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Like\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Like\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Like\"",
+        "sql": "CREATE TABLE \"public\".\"Like\" (\n  \"articleId\" int4,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"productId\" int4,\n  \"userId\" int4 NOT NULL,\n  CONSTRAINT \"Like_pkey\" PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Like\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Like\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.Product",
+    "label": "Create table \"Product\"",
+    "summary": "Creates table \"Product\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Product"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Product\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Product\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Product\"",
+        "sql": "CREATE TABLE \"public\".\"Product\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"description\" text NOT NULL,\n  \"favoriteCount\" int4 DEFAULT 0 NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"images\" text[] DEFAULT '{}',\n  \"name\" text NOT NULL,\n  \"ownerId\" int4,\n  \"price\" int4 NOT NULL,\n  \"tags\" text[] DEFAULT '{}',\n  \"updatedAt\" timestamp(3) NOT NULL,\n  CONSTRAINT \"Product_pkey\" PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Product\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Product\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.User",
+    "label": "Create table \"User\"",
+    "summary": "Creates table \"User\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "User"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"User\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"User\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"User\"",
+        "sql": "CREATE TABLE \"public\".\"User\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"email\" text NOT NULL,\n  \"encryptedPassword\" text NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"image\" text,\n  \"nickname\" text NOT NULL,\n  \"updatedAt\" timestamp(3) NOT NULL,\n  CONSTRAINT \"User_pkey\" PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"User\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"User\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Like.Like_userId_articleId_key",
+    "label": "Create index \"Like_userId_articleId_key\" on \"Like\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Like_userId_articleId_key",
+        "table": "Like"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Like_userId_articleId_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Like_userId_articleId_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Like_userId_articleId_key\"",
+        "sql": "CREATE UNIQUE INDEX \"Like_userId_articleId_key\" ON \"public\".\"Like\" (\"userId\", \"articleId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Like_userId_articleId_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Like_userId_articleId_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Like.Like_userId_productId_key",
+    "label": "Create index \"Like_userId_productId_key\" on \"Like\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Like_userId_productId_key",
+        "table": "Like"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Like_userId_productId_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Like_userId_productId_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Like_userId_productId_key\"",
+        "sql": "CREATE UNIQUE INDEX \"Like_userId_productId_key\" ON \"public\".\"Like\" (\"userId\", \"productId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Like_userId_productId_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Like_userId_productId_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.User.User_email_key",
+    "label": "Create index \"User_email_key\" on \"User\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "User_email_key",
+        "table": "User"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"User_email_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"User_email_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"User_email_key\"",
+        "sql": "CREATE UNIQUE INDEX \"User_email_key\" ON \"public\".\"User\" (\"email\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"User_email_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"User_email_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.User.User_nickname_key",
+    "label": "Create index \"User_nickname_key\" on \"User\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "User_nickname_key",
+        "table": "User"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"User_nickname_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"User_nickname_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"User_nickname_key\"",
+        "sql": "CREATE UNIQUE INDEX \"User_nickname_key\" ON \"public\".\"User\" (\"nickname\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"User_nickname_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"User_nickname_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Article.Article_authorId_fkey",
+    "label": "Add foreign key \"Article_authorId_fkey\" on \"Article\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Article_authorId_fkey",
+        "table": "Article"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Article_authorId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Article_authorId_fkey",
+          "public",
+          "\"public\".\"Article\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Article_authorId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Article\"\nADD CONSTRAINT \"Article_authorId_fkey\"\nFOREIGN KEY (\"authorId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Article_authorId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Article_authorId_fkey",
+          "public",
+          "\"public\".\"Article\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Comment.Comment_articleId_fkey",
+    "label": "Add foreign key \"Comment_articleId_fkey\" on \"Comment\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Comment_articleId_fkey",
+        "table": "Comment"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Comment_articleId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Comment_articleId_fkey",
+          "public",
+          "\"public\".\"Comment\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Comment_articleId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Comment\"\nADD CONSTRAINT \"Comment_articleId_fkey\"\nFOREIGN KEY (\"articleId\")\nREFERENCES \"public\".\"Article\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Comment_articleId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Comment_articleId_fkey",
+          "public",
+          "\"public\".\"Comment\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Comment.Comment_authorId_fkey",
+    "label": "Add foreign key \"Comment_authorId_fkey\" on \"Comment\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Comment_authorId_fkey",
+        "table": "Comment"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Comment_authorId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Comment_authorId_fkey",
+          "public",
+          "\"public\".\"Comment\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Comment_authorId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Comment\"\nADD CONSTRAINT \"Comment_authorId_fkey\"\nFOREIGN KEY (\"authorId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Comment_authorId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Comment_authorId_fkey",
+          "public",
+          "\"public\".\"Comment\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Comment.Comment_productId_fkey",
+    "label": "Add foreign key \"Comment_productId_fkey\" on \"Comment\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Comment_productId_fkey",
+        "table": "Comment"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Comment_productId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Comment_productId_fkey",
+          "public",
+          "\"public\".\"Comment\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Comment_productId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Comment\"\nADD CONSTRAINT \"Comment_productId_fkey\"\nFOREIGN KEY (\"productId\")\nREFERENCES \"public\".\"Product\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Comment_productId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Comment_productId_fkey",
+          "public",
+          "\"public\".\"Comment\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Like.Like_articleId_fkey",
+    "label": "Add foreign key \"Like_articleId_fkey\" on \"Like\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Like_articleId_fkey",
+        "table": "Like"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Like_articleId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Like_articleId_fkey",
+          "public",
+          "\"public\".\"Like\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Like_articleId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Like\"\nADD CONSTRAINT \"Like_articleId_fkey\"\nFOREIGN KEY (\"articleId\")\nREFERENCES \"public\".\"Article\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Like_articleId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Like_articleId_fkey",
+          "public",
+          "\"public\".\"Like\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Like.Like_productId_fkey",
+    "label": "Add foreign key \"Like_productId_fkey\" on \"Like\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Like_productId_fkey",
+        "table": "Like"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Like_productId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Like_productId_fkey",
+          "public",
+          "\"public\".\"Like\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Like_productId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Like\"\nADD CONSTRAINT \"Like_productId_fkey\"\nFOREIGN KEY (\"productId\")\nREFERENCES \"public\".\"Product\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Like_productId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Like_productId_fkey",
+          "public",
+          "\"public\".\"Like\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Like.Like_userId_fkey",
+    "label": "Add foreign key \"Like_userId_fkey\" on \"Like\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Like_userId_fkey",
+        "table": "Like"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Like_userId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Like_userId_fkey",
+          "public",
+          "\"public\".\"Like\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Like_userId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Like\"\nADD CONSTRAINT \"Like_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Like_userId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Like_userId_fkey",
+          "public",
+          "\"public\".\"Like\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Product.Product_ownerId_fkey",
+    "label": "Add foreign key \"Product_ownerId_fkey\" on \"Product\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Product_ownerId_fkey",
+        "table": "Product"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Product_ownerId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Product_ownerId_fkey",
+          "public",
+          "\"public\".\"Product\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Product_ownerId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Product\"\nADD CONSTRAINT \"Product_ownerId_fkey\"\nFOREIGN KEY (\"ownerId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Product_ownerId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Product_ownerId_fkey",
+          "public",
+          "\"public\".\"Product\""
+        ]
+      }
+    ]
+  }
+]
