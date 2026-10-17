@@ -1,5 +1,5 @@
 import { ERROR_MESSAGES } from '#constants';
-import { BadRequestException } from '#errors';
+import { BadRequestException } from '#exceptions';
 
 const SORT_OPTIONS = ['recent', 'like', 'oldest'];
 

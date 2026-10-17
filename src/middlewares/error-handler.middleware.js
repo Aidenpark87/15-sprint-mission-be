@@ -1,7 +1,7 @@
 import multer from 'multer';
 import { isDevelopment } from '#config';
 import { HTTP_STATUS, PRISMA_ERROR } from '#constants';
-import { HttpException } from '#errors';
+import { HttpException } from '#exceptions';
 import { Prisma } from '#generated/prisma/client.js';
 
 export const errorHandler = (error, _req, res, next) => {

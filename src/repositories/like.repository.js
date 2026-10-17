@@ -1,82 +1,79 @@
-import { prisma } from '#db/prisma.js';
+export class LikeRepository {
+  #db;
 
-function findByUserAndProduct({ userId, productId }) {
-  return prisma.like.findUnique({
-    where: {
-      userId_productId: { userId, productId },
-    },
-  });
-}
+  constructor({ db }) {
+    this.#db = db;
+  }
 
-async function create({ userId, productId }) {
-  const [, product] = await prisma.$transaction([
-    prisma.like.create({ data: { userId, productId } }),
-    prisma.product.update({
-      where: { id: productId },
-      data: { favoriteCount: { increment: 1 } },
-    }),
-  ]);
-
-  return product;
-}
-
-async function remove({ userId, productId }) {
-  const [, product] = await prisma.$transaction([
-    prisma.like.delete({
+  findByUserAndProduct({ userId, productId }) {
+    return this.#db.like.findUnique({
       where: {
         userId_productId: { userId, productId },
       },
-    }),
-    prisma.product.update({
-      where: { id: productId },
-      data: { favoriteCount: { decrement: 1 } },
-    }),
-  ]);
+    });
+  }
 
-  return product;
-}
+  async create({ userId, productId }) {
+    const [, product] = await this.#db.$transaction([
+      this.#db.like.create({ data: { userId, productId } }),
+      this.#db.product.update({
+        where: { id: productId },
+        data: { favoriteCount: { increment: 1 } },
+      }),
+    ]);
 
-function findByUserAndArticle({ userId, articleId }) {
-  return prisma.like.findUnique({
-    where: {
-      userId_articleId: { userId, articleId },
-    },
-  });
-}
+    return product;
+  }
 
-async function createArticle({ userId, articleId }) {
-  const [, article] = await prisma.$transaction([
-    prisma.like.create({ data: { userId, articleId } }),
-    prisma.article.update({
-      where: { id: articleId },
-      data: { likeCount: { increment: 1 } },
-    }),
-  ]);
+  async remove({ userId, productId }) {
+    const [, product] = await this.#db.$transaction([
+      this.#db.like.delete({
+        where: {
+          userId_productId: { userId, productId },
+        },
+      }),
+      this.#db.product.update({
+        where: { id: productId },
+        data: { favoriteCount: { decrement: 1 } },
+      }),
+    ]);
 
-  return article;
-}
+    return product;
+  }
 
-async function removeArticle({ userId, articleId }) {
-  const [, article] = await prisma.$transaction([
-    prisma.like.delete({
+  findByUserAndArticle({ userId, articleId }) {
+    return this.#db.like.findUnique({
       where: {
         userId_articleId: { userId, articleId },
       },
-    }),
-    prisma.article.update({
-      where: { id: articleId },
-      data: { likeCount: { decrement: 1 } },
-    }),
-  ]);
+    });
+  }
 
-  return article;
+  async createArticle({ userId, articleId }) {
+    const [, article] = await this.#db.$transaction([
+      this.#db.like.create({ data: { userId, articleId } }),
+      this.#db.article.update({
+        where: { id: articleId },
+        data: { likeCount: { increment: 1 } },
+      }),
+    ]);
+
+    return article;
+  }
+
+  async removeArticle({ userId, articleId }) {
+    const [, article] = await this.#db.$transaction([
+      this.#db.like.delete({
+        where: {
+          userId_articleId: { userId, articleId },
+        },
+      }),
+      this.#db.article.update({
+        where: { id: articleId },
+        data: { likeCount: { decrement: 1 } },
+      }),
+    ]);
+
+    return article;
+  }
 }
-
-export const likeRepository = {
-  findByUserAndProduct,
-  create,
-  remove,
-  findByUserAndArticle,
-  createArticle,
-  removeArticle,
-};

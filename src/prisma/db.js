@@ -12,6 +12,6 @@ if (process.env.VERCEL) {
 
 const adapter = new PrismaPg(pool);
 
-export const prisma = new PrismaClient({
+export const db = new PrismaClient({
   adapter,
 });

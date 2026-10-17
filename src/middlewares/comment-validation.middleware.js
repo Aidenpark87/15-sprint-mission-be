@@ -1,5 +1,5 @@
 import { ERROR_MESSAGES, TEXT_LIMITS } from '#constants';
-import { BadRequestException } from '#errors';
+import { BadRequestException } from '#exceptions';
 
 function validateComment(req, _res, next) {
   const { content } = req.body ?? {};

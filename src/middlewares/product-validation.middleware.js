@@ -1,5 +1,5 @@
 import { ERROR_MESSAGES, TEXT_LIMITS } from '#constants';
-import { BadRequestException } from '#errors';
+import { BadRequestException } from '#exceptions';
 
 function assertLength(name, description) {
   if (name != null && name.length > TEXT_LIMITS.PRODUCT_NAME) {

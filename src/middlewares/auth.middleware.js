@@ -1,7 +1,5 @@
 import { ERROR_MESSAGES } from '#constants';
-import { UnauthorizedException } from '#errors';
-import { userRepository } from '#repositories';
-import { verifyToken } from '#auth/token.js';
+import { UnauthorizedException } from '#exceptions';
 
 function extractBearerToken(authorization) {
   if (typeof authorization !== 'string') {
@@ -16,39 +14,49 @@ function extractBearerToken(authorization) {
   return token;
 }
 
-async function authenticate(req) {
-  const token = extractBearerToken(req.headers.authorization);
-  if (!token) {
-    throw new UnauthorizedException(ERROR_MESSAGES.ACCESS_TOKEN_MISSING);
+export class AuthMiddleware {
+  #userRepository;
+  #tokenProvider;
+
+  constructor({ userRepository, tokenProvider }) {
+    this.#userRepository = userRepository;
+    this.#tokenProvider = tokenProvider;
   }
 
-  const payload = verifyToken(token);
-  const user = await userRepository.findById(Number(payload.sub));
-  if (!user) {
-    throw new UnauthorizedException(ERROR_MESSAGES.INVALID_TOKEN);
-  }
-
-  return user;
-}
-
-export async function requireAuth(req, _res, next) {
-  try {
-    req.user = await authenticate(req);
-    next();
-  } catch (error) {
-    next(error);
-  }
-}
-
-export async function optionalAuth(req, _res, next) {
-  try {
+  async authenticate(req) {
     const token = extractBearerToken(req.headers.authorization);
-    if (token) {
-      req.user = await authenticate(req);
+    if (!token) {
+      throw new UnauthorizedException(ERROR_MESSAGES.ACCESS_TOKEN_MISSING);
     }
-  } catch {
-    req.user = undefined;
+
+    const payload = this.#tokenProvider.verifyToken(token);
+    const user = await this.#userRepository.findById(Number(payload.sub));
+    if (!user) {
+      throw new UnauthorizedException(ERROR_MESSAGES.INVALID_TOKEN);
+    }
+
+    return user;
   }
 
-  next();
+  requireAuth = async (req, _res, next) => {
+    try {
+      req.user = await this.authenticate(req);
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  optionalAuth = async (req, _res, next) => {
+    try {
+      const token = extractBearerToken(req.headers.authorization);
+      if (token) {
+        req.user = await this.authenticate(req);
+      }
+    } catch {
+      req.user = undefined;
+    }
+
+    next();
+  };
 }

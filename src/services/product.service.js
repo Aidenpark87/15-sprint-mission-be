@@ -3,125 +3,117 @@ import {
   ConflictException,
   ForbiddenException,
   NotFoundException,
-} from '#errors';
-import { likeRepository, productRepository } from '#repositories';
+} from '#exceptions';
 
 const MAX_IMAGES = 3;
 
-function normalizeImages(images) {
-  return Array.isArray(images) ? images.slice(0, MAX_IMAGES) : [];
-}
+export class ProductService {
+  #productRepository;
+  #likeRepository;
 
-async function findOwnedProduct(productId, user) {
-  const product = await productRepository.findById(productId);
-  if (!product) {
-    throw new NotFoundException(ERROR_MESSAGES.PRODUCT_NOT_FOUND);
-  }
-  if (product.ownerId !== user.id) {
-    throw new ForbiddenException(ERROR_MESSAGES.PRODUCT_FORBIDDEN_OWNER);
+  constructor({ productRepository, likeRepository }) {
+    this.#productRepository = productRepository;
+    this.#likeRepository = likeRepository;
   }
 
-  return product;
-}
+  async create({ name, description, price, tags, images, userId }) {
+    const product = await this.#productRepository.create({
+      name,
+      description,
+      price: Number(price),
+      tags: Array.isArray(tags) ? tags : [],
+      images: this.#normalizeImages(images),
+      ownerId: userId,
+    });
 
-async function create({
-  name,
-  description,
-  price,
-  tags,
-  images,
-  userId,
-}) {
-  const product = await productRepository.create({
-    name,
-    description,
-    price: Number(price),
-    tags: Array.isArray(tags) ? tags : [],
-    images: normalizeImages(images),
-    ownerId: userId,
-  });
-
-  return productRepository.findById(product.id, userId);
-}
-
-function list({ offset, limit, keyword, sort, userId }) {
-  return productRepository.findAll({ offset, limit, keyword, sort, userId });
-}
-
-async function getDetail(productId, userId) {
-  const product = await productRepository.findById(productId, userId);
-  if (!product) {
-    throw new NotFoundException(ERROR_MESSAGES.PRODUCT_NOT_FOUND);
+    return this.#productRepository.findById(product.id, userId);
   }
 
-  return product;
-}
-
-async function update(productId, user, body) {
-  const { name, description, price, tags, images } = body;
-
-  await findOwnedProduct(productId, user);
-
-  await productRepository.update(productId, {
-    ...(name != null && { name }),
-    ...(description != null && { description }),
-    ...(price != null && { price: Number(price) }),
-    ...(tags != null && { tags }),
-    ...(images != null && { images: normalizeImages(images) }),
-  });
-
-  return productRepository.findById(productId, user.id);
-}
-
-async function remove(productId, user) {
-  await findOwnedProduct(productId, user);
-  await productRepository.remove(productId);
-}
-
-async function like(productId, user) {
-  const product = await productRepository.findById(productId);
-  if (!product) {
-    throw new NotFoundException(ERROR_MESSAGES.PRODUCT_NOT_FOUND);
+  list({ offset, limit, keyword, sort, userId }) {
+    return this.#productRepository.findAll({ offset, limit, keyword, sort, userId });
   }
 
-  const existing = await likeRepository.findByUserAndProduct({
-    userId: user.id,
-    productId,
-  });
-  if (existing) {
-    throw new ConflictException(ERROR_MESSAGES.FAVORITE_ALREADY_EXISTS);
+  async getDetail(productId, userId) {
+    const product = await this.#productRepository.findById(productId, userId);
+    if (!product) {
+      throw new NotFoundException(ERROR_MESSAGES.PRODUCT_NOT_FOUND);
+    }
+
+    return product;
   }
 
-  await likeRepository.create({ userId: user.id, productId });
+  async update(productId, user, body) {
+    const { name, description, price, tags, images } = body;
 
-  return productRepository.findById(productId, user.id);
+    await this.#findOwnedProduct(productId, user);
+
+    await this.#productRepository.update(productId, {
+      ...(name != null && { name }),
+      ...(description != null && { description }),
+      ...(price != null && { price: Number(price) }),
+      ...(tags != null && { tags }),
+      ...(images != null && { images: this.#normalizeImages(images) }),
+    });
+
+    return this.#productRepository.findById(productId, user.id);
+  }
+
+  async remove(productId, user) {
+    await this.#findOwnedProduct(productId, user);
+    await this.#productRepository.remove(productId);
+  }
+
+  async like(productId, user) {
+    const product = await this.#productRepository.findById(productId);
+    if (!product) {
+      throw new NotFoundException(ERROR_MESSAGES.PRODUCT_NOT_FOUND);
+    }
+
+    const existing = await this.#likeRepository.findByUserAndProduct({
+      userId: user.id,
+      productId,
+    });
+    if (existing) {
+      throw new ConflictException(ERROR_MESSAGES.FAVORITE_ALREADY_EXISTS);
+    }
+
+    await this.#likeRepository.create({ userId: user.id, productId });
+
+    return this.#productRepository.findById(productId, user.id);
+  }
+
+  async unlike(productId, user) {
+    const product = await this.#productRepository.findById(productId);
+    if (!product) {
+      throw new NotFoundException(ERROR_MESSAGES.PRODUCT_NOT_FOUND);
+    }
+
+    const existing = await this.#likeRepository.findByUserAndProduct({
+      userId: user.id,
+      productId,
+    });
+    if (!existing) {
+      throw new NotFoundException(ERROR_MESSAGES.FAVORITE_NOT_FOUND);
+    }
+
+    await this.#likeRepository.remove({ userId: user.id, productId });
+
+    return this.#productRepository.findById(productId, user.id);
+  }
+
+  #normalizeImages(images) {
+    return Array.isArray(images) ? images.slice(0, MAX_IMAGES) : [];
+  }
+
+  async #findOwnedProduct(productId, user) {
+    const product = await this.#productRepository.findById(productId);
+    if (!product) {
+      throw new NotFoundException(ERROR_MESSAGES.PRODUCT_NOT_FOUND);
+    }
+    if (product.ownerId !== user.id) {
+      throw new ForbiddenException(ERROR_MESSAGES.PRODUCT_FORBIDDEN_OWNER);
+    }
+
+    return product;
+  }
 }
-
-async function unlike(productId, user) {
-  const product = await productRepository.findById(productId);
-  if (!product) {
-    throw new NotFoundException(ERROR_MESSAGES.PRODUCT_NOT_FOUND);
-  }
-
-  const existing = await likeRepository.findByUserAndProduct({
-    userId: user.id,
-    productId,
-  });
-  if (!existing) {
-    throw new NotFoundException(ERROR_MESSAGES.FAVORITE_NOT_FOUND);
-  }
-
-  await likeRepository.remove({ userId: user.id, productId });
-
-  return productRepository.findById(productId, user.id);
-}
-
-export const productService = {
-  create,
-  list,
-  getDetail,
-  update,
-  remove,
-  like,
-  unlike,
-};

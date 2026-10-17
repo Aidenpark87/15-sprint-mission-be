@@ -1,13 +1,14 @@
-import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import { Buffer } from 'node:buffer';
 import multer from 'multer';
 import convert from 'heic-convert';
+import { BaseController } from './base-controller.js';
 import { HTTP_STATUS } from '#constants';
-import { BadRequestException } from '#errors';
+import { BadRequestException } from '#exceptions';
 
-export const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
+export const UPLOAD_DIR =
+  process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -18,14 +19,13 @@ try {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 } catch {}
 
-const storage = multer.memoryStorage();
-
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { files: 1, fileSize: MAX_FILE_SIZE },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname || '').toLowerCase();
-    const isAllowed = ALLOWED_EXTENSIONS.includes(ext) || HEIC_EXTENSIONS.includes(ext);
+    const isAllowed =
+      ALLOWED_EXTENSIONS.includes(ext) || HEIC_EXTENSIONS.includes(ext);
     if (isAllowed) cb(null, true);
     else
       cb(
@@ -53,26 +53,28 @@ async function toUploadBuffer(file) {
   }
 }
 
-export const imagesRouter = express.Router();
+export class ImageController extends BaseController {
+  routes() {
+    this.router.post('/upload', upload.single('image'), async (req, res, next) => {
+      try {
+        if (!req.file) {
+          throw new BadRequestException('업로드할 이미지를 선택해 주세요');
+        }
 
-imagesRouter.post('/upload', upload.single('image'), async (req, res, next) => {
-  try {
-    if (!req.file) {
-      throw new BadRequestException('업로드할 이미지를 선택해 주세요');
-    }
+        const { buffer, ext } = await toUploadBuffer(req.file);
+        const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
 
-    const { buffer, ext } = await toUploadBuffer(req.file);
-    const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+        await fs.promises.writeFile(path.join(UPLOAD_DIR, filename), buffer);
 
-    await fs.promises.writeFile(path.join(UPLOAD_DIR, filename), buffer);
-
-    return res.status(HTTP_STATUS.CREATED).json({
-      success: true,
-      data: { url: `/uploads/${filename}` },
+        return res.status(HTTP_STATUS.CREATED).json({
+          success: true,
+          data: { url: `/uploads/${filename}` },
+        });
+      } catch (error) {
+        return next(error);
+      }
     });
-  } catch (error) {
-    return next(error);
-  }
-});
 
-imagesRouter.use((err, _req, _res, next) => next(err));
+    return this.router;
+  }
+}

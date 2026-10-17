@@ -1,5 +1,3 @@
-import { prisma } from '#db/prisma.js';
-
 const PUBLIC_SELECT = {
   id: true,
   email: true,
@@ -9,28 +7,29 @@ const PUBLIC_SELECT = {
   updatedAt: true,
 };
 
-function create(data) {
-  return prisma.user.create({ data });
-}
+export class UserRepository {
+  #db;
 
-function findByEmail(email) {
-  return prisma.user.findUnique({ where: { email } });
-}
+  constructor({ db }) {
+    this.#db = db;
+  }
 
-function findByNickname(nickname) {
-  return prisma.user.findUnique({ where: { nickname } });
-}
+  create(data) {
+    return this.#db.user.create({ data });
+  }
 
-function findById(id) {
-  return prisma.user.findUnique({
-    where: { id: Number(id) },
-    select: PUBLIC_SELECT,
-  });
-}
+  findByEmail(email) {
+    return this.#db.user.findUnique({ where: { email } });
+  }
 
-export const userRepository = {
-  create,
-  findByEmail,
-  findByNickname,
-  findById,
-};
+  findByNickname(nickname) {
+    return this.#db.user.findUnique({ where: { nickname } });
+  }
+
+  findById(id) {
+    return this.#db.user.findUnique({
+      where: { id: Number(id) },
+      select: PUBLIC_SELECT,
+    });
+  }
+}

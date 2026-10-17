@@ -3,97 +3,95 @@ import {
   ForbiddenException,
   NotFoundException,
   UnauthorizedException,
-} from '#errors';
-import {
-  articleRepository,
-  commentRepository,
-  productRepository,
-} from '#repositories';
+} from '#exceptions';
 
-function assertCommentOwner(user, comment) {
-  if (!user) {
-    throw new UnauthorizedException(ERROR_MESSAGES.ACCESS_TOKEN_MISSING);
+export class CommentService {
+  #articleRepository;
+  #commentRepository;
+  #productRepository;
+
+  constructor({ articleRepository, commentRepository, productRepository }) {
+    this.#articleRepository = articleRepository;
+    this.#commentRepository = commentRepository;
+    this.#productRepository = productRepository;
   }
 
-  if (comment.authorId == null || comment.authorId !== user.id) {
-    throw new ForbiddenException(
-      comment.articleId != null
-        ? ERROR_MESSAGES.ARTICLE_COMMENT_FORBIDDEN_OWNER
-        : ERROR_MESSAGES.COMMENT_FORBIDDEN_OWNER,
-    );
-  }
-}
+  async createForProduct({ productId, content, user }) {
+    const product = await this.#productRepository.findById(productId);
+    if (!product) {
+      throw new NotFoundException(ERROR_MESSAGES.PRODUCT_COMMENT_TARGET_MISSING);
+    }
 
-async function findCommentWithOwner(commentId, user) {
-  const comment = await commentRepository.findWithAuthor(commentId);
-  if (!comment) {
-    throw new NotFoundException(ERROR_MESSAGES.COMMENT_NOT_FOUND);
+    return this.#commentRepository.create({
+      content,
+      productId,
+      authorId: user.id,
+    });
   }
 
-  assertCommentOwner(user, comment);
+  async createForArticle({ articleId, content, user }) {
+    const article = await this.#articleRepository.findById(articleId);
+    if (!article) {
+      throw new NotFoundException(ERROR_MESSAGES.ARTICLE_COMMENT_TARGET_MISSING);
+    }
 
-  return comment;
-}
-
-async function createForProduct({ productId, content, user }) {
-  const product = await productRepository.findById(productId);
-  if (!product) {
-    throw new NotFoundException(ERROR_MESSAGES.PRODUCT_COMMENT_TARGET_MISSING);
+    return this.#commentRepository.create({
+      content,
+      articleId,
+      authorId: user.id,
+    });
   }
 
-  return commentRepository.create({
-    content,
-    productId,
-    authorId: user.id,
-  });
-}
+  async listByProduct(productId, { cursor, limit }) {
+    const product = await this.#productRepository.findById(productId);
+    if (!product) {
+      throw new NotFoundException(ERROR_MESSAGES.PRODUCT_COMMENT_TARGET_MISSING);
+    }
 
-async function createForArticle({ articleId, content, user }) {
-  const article = await articleRepository.findById(articleId);
-  if (!article) {
-    throw new NotFoundException(ERROR_MESSAGES.ARTICLE_COMMENT_TARGET_MISSING);
+    return this.#commentRepository.findAllByParent({ productId, cursor, limit });
   }
 
-  return commentRepository.create({
-    content,
-    articleId,
-    authorId: user.id,
-  });
-}
+  async listByArticle(articleId, { cursor, limit }) {
+    const article = await this.#articleRepository.findById(articleId);
+    if (!article) {
+      throw new NotFoundException(ERROR_MESSAGES.ARTICLE_COMMENT_TARGET_MISSING);
+    }
 
-async function listByProduct(productId, { cursor, limit }) {
-  const product = await productRepository.findById(productId);
-  if (!product) {
-    throw new NotFoundException(ERROR_MESSAGES.PRODUCT_COMMENT_TARGET_MISSING);
+    return this.#commentRepository.findAllByParent({ articleId, cursor, limit });
   }
 
-  return commentRepository.findAllByParent({ productId, cursor, limit });
-}
-
-async function listByArticle(articleId, { cursor, limit }) {
-  const article = await articleRepository.findById(articleId);
-  if (!article) {
-    throw new NotFoundException(ERROR_MESSAGES.ARTICLE_COMMENT_TARGET_MISSING);
+  async update(commentId, user, content) {
+    await this.#findCommentWithOwner(commentId, user);
+    return this.#commentRepository.update(commentId, { content });
   }
 
-  return commentRepository.findAllByParent({ articleId, cursor, limit });
-}
+  async remove(commentId, user) {
+    await this.#findCommentWithOwner(commentId, user);
+    await this.#commentRepository.remove(commentId);
+  }
 
-async function update(commentId, user, content) {
-  await findCommentWithOwner(commentId, user);
-  return commentRepository.update(commentId, { content });
-}
+  async #findCommentWithOwner(commentId, user) {
+    const comment = await this.#commentRepository.findWithAuthor(commentId);
+    if (!comment) {
+      throw new NotFoundException(ERROR_MESSAGES.COMMENT_NOT_FOUND);
+    }
 
-async function remove(commentId, user) {
-  await findCommentWithOwner(commentId, user);
-  await commentRepository.remove(commentId);
-}
+    this.#assertCommentOwner(user, comment);
 
-export const commentService = {
-  createForProduct,
-  createForArticle,
-  listByProduct,
-  listByArticle,
-  update,
-  remove,
-};
+    return comment;
+  }
+
+  #assertCommentOwner(user, comment) {
+    if (!user) {
+      throw new UnauthorizedException(ERROR_MESSAGES.ACCESS_TOKEN_MISSING);
+    }
+
+    if (comment.authorId == null || comment.authorId !== user.id) {
+      throw new ForbiddenException(
+        comment.articleId != null
+          ? ERROR_MESSAGES.ARTICLE_COMMENT_FORBIDDEN_OWNER
+          : ERROR_MESSAGES.COMMENT_FORBIDDEN_OWNER,
+      );
+    }
+  }
+}
