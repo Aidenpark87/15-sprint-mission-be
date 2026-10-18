@@ -272,7 +272,7 @@ export const swaggerDefinition = {
         tags: ['Auth'],
         summary: '소셜 로그인 시작',
         description:
-          '서명된 state(HMAC·10분 만료)와 PKCE code_challenge 를 만들어 공급자 인가 페이지로 302 리다이렉트합니다. transactionNonce·codeVerifier 는 쿠키로 보관합니다.',
+          '서명된 state(HMAC·10분 만료)와 PKCE code_challenge 를 만들어 공급자 인가 페이지로 302 리다이렉트합니다. 계정 전환을 위해 항상 계정 선택 화면을 띄웁니다(prompt=select_account). transactionNonce·codeVerifier 는 쿠키로 보관합니다.',
         parameters: [
           {
             name: 'provider',

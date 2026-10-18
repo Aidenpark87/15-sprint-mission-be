@@ -151,6 +151,7 @@ export class SocialAuthController extends BaseController {
           state,
           code_challenge: codeChallenge,
           code_challenge_method: 'S256',
+          prompt: 'select_account',
         });
 
         return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
@@ -163,6 +164,7 @@ export class SocialAuthController extends BaseController {
           state,
           code_challenge: codeChallenge,
           code_challenge_method: 'S256',
+          prompt: 'select_account',
         });
 
         return `https://kauth.kakao.com/oauth/authorize?${params.toString()}`;
