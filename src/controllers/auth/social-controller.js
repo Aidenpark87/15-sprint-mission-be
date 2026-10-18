@@ -161,6 +161,7 @@ export class SocialAuthController extends BaseController {
           client_id: config.KAKAO_CLIENT_ID,
           redirect_uri: `${this.#redirectUri}/kakao`,
           response_type: 'code',
+          scope: 'profile_nickname',
           state,
           code_challenge: codeChallenge,
           code_challenge_method: 'S256',
