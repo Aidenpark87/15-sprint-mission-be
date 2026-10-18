@@ -27,15 +27,48 @@ function section(title) {
   console.log(`\n${title}`);
 }
 
-async function call(BASE, method, path, { token, body } = {}) {
+function createCookieJar(initial = {}) {
+  const store = new Map(Object.entries(initial));
+
+  return {
+    header() {
+      return [...store.entries()]
+        .map(([name, value]) => `${name}=${value}`)
+        .join('; ');
+    },
+    absorb(res) {
+      for (const raw of res.headers.getSetCookie?.() ?? []) {
+        const [pair] = raw.split(';');
+        const separator = pair.indexOf('=');
+        const name = pair.slice(0, separator).trim();
+        const value = pair.slice(separator + 1).trim();
+        if (!name) continue;
+        if (value === '') store.delete(name);
+        else store.set(name, value);
+      }
+    },
+  };
+}
+
+const session = createCookieJar();
+const socialJar = createCookieJar();
+const staleJar = createCookieJar({ accessToken: 'invalid.token.here' });
+
+async function call(BASE, method, path, { jar, body, redirect } = {}) {
   const headers = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (jar) {
+    const cookie = jar.header();
+    if (cookie) headers.Cookie = cookie;
+  }
   const res = await fetch(BASE + path, {
     method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
+    redirect,
   });
+
+  if (jar) jar.absorb(res);
 
   let json;
   const text = await res.text();
@@ -45,7 +78,7 @@ async function call(BASE, method, path, { token, body } = {}) {
     json = text;
   }
 
-  return { status: res.status, json };
+  return { status: res.status, json, location: res.headers.get('location') };
 }
 
 async function runChecks(BASE) {
@@ -71,9 +104,10 @@ async function runChecks(BASE) {
   r = await call(BASE, 'GET', '/api/products/abc');
   check('잘못된 id 400', r.status === 400);
 
-  section('[2] 인증 · 토큰 (회원가입/로그인/재발급)');
+  section('[2] 인증 · 세션 쿠키 (회원가입/로그인/로그아웃/소셜)');
   const email = `verify_${stamp}@test.com`;
   r = await call(BASE, 'POST', '/api/auth/signUp', {
+    jar: session,
     body: {
       email,
       nickname: `검증${String(stamp).slice(-6)}`,
@@ -81,9 +115,10 @@ async function runChecks(BASE) {
       passwordConfirmation: 'password123',
     },
   });
-  check('회원가입 201 + 토큰 발급', r.status === 201 && Boolean(r.json?.data?.accessToken));
-  const token = r.json?.data?.accessToken;
-  const refreshToken = r.json?.data?.refreshToken;
+  check(
+    '회원가입 201 + 유저 반환 + 인증 쿠키',
+    r.status === 201 && r.json?.data?.email === email && session.header().includes('accessToken'),
+  );
 
   r = await call(BASE, 'POST', '/api/auth/signUp', {
     body: {
@@ -100,29 +135,62 @@ async function runChecks(BASE) {
   });
   check('가입 입력값 오류 400', r.status === 400);
 
-  r = await call(BASE, 'POST', '/api/auth/signIn', { body: { email, password: 'password123' } });
-  check('로그인 200', r.status === 200 && Boolean(r.json?.data?.accessToken));
-  r = await call(BASE, 'POST', '/api/auth/signIn', { body: { email, password: 'wrongpass' } });
+  r = await call(BASE, 'GET', '/api/users/me', { jar: session });
+  check('쿠키로 내 정보 조회 200', r.status === 200 && r.json?.data?.email === email);
+  r = await call(BASE, 'GET', '/api/users/me');
+  check('쿠키 없이 내 정보 401', r.status === 401);
+  r = await call(BASE, 'GET', '/api/users/me', { jar: staleJar });
+  check('위조 쿠키로 내 정보 401', r.status === 401);
+
+  r = await call(BASE, 'POST', '/api/auth/logout', { jar: session });
+  check('로그아웃 204', r.status === 204);
+  r = await call(BASE, 'GET', '/api/users/me', { jar: session });
+  check('로그아웃 후 내 정보 401', r.status === 401);
+
+  r = await call(BASE, 'POST', '/api/auth/signIn', {
+    jar: session,
+    body: { email, password: 'password123' },
+  });
+  check('로그인 200 + 인증 쿠키 재발급', r.status === 200 && r.json?.data?.email === email);
+  r = await call(BASE, 'POST', '/api/auth/signIn', {
+    body: { email, password: 'wrongpass' },
+  });
   check('비밀번호 불일치 401', r.status === 401);
 
-  r = await call(BASE, 'POST', '/api/auth/refresh', { body: { refreshToken } });
-  check('리프레시 토큰 재발급 200 (회전)', r.status === 200 && Boolean(r.json?.data?.accessToken));
-  r = await call(BASE, 'POST', '/api/auth/refresh', { body: { refreshToken: token } });
-  check('액세스 토큰으로 재발급 시도 401', r.status === 401);
-  r = await call(BASE, 'POST', '/api/auth/refresh', { body: {} });
-  check('리프레시 토큰 누락 400', r.status === 400);
+  r = await call(BASE, 'GET', '/api/auth/social/google/login?next=/items', {
+    jar: socialJar,
+    redirect: 'manual',
+  });
+  check(
+    '구글 로그인 시작 302 + 인가 URL + state/PKCE 쿠키',
+    r.status === 302 &&
+      String(r.location).startsWith('https://accounts.google.com/o/oauth2/v2/auth') &&
+      String(r.location).includes('code_challenge=') &&
+      socialJar.header().includes('oauthCodeVerifier'),
+  );
 
-  r = await call(BASE, 'POST', '/api/auth/google', { body: { code: 'x' } });
-  check('구글 OAuth 미설정 400 (안내)', r.status === 400);
+  r = await call(BASE, 'GET', '/api/auth/social/kakao/login', { redirect: 'manual' });
+  check('카카오 로그인 시작 (미설정 400 / 설정됨 302)', r.status === 400 || r.status === 302);
 
-  r = await call(BASE, 'GET', '/api/users/me', { token });
+  r = await call(BASE, 'GET', '/api/auth/social/naver/login', { redirect: 'manual' });
+  check('미지원 공급자 400', r.status === 400);
+
+  r = await call(BASE, 'GET', '/api/auth/social/callback/google?state=bogus&code=x', {
+    redirect: 'manual',
+  });
+  check(
+    '소셜 콜백 state 위조/만료 → 프론트로 302(error=invalid_request)',
+    r.status === 302 && String(r.location).includes('error=invalid_request'),
+  );
+
+  r = await call(BASE, 'GET', '/api/users/me', { jar: session });
   check('내 정보 조회 200', r.status === 200 && r.json?.data?.email === email);
   r = await call(BASE, 'GET', '/api/users/me');
   check('인증 없이 내 정보 401', r.status === 401);
 
   section('[3] 상품 CRUD · 좋아요 · 인가');
   r = await call(BASE, 'POST', '/api/products', {
-    token,
+    jar: session,
     body: { name: '검증상품', description: '설명', price: 1000 },
   });
   check('상품 등록 201', r.status === 201 && Boolean(r.json?.data?.id));
@@ -131,38 +199,38 @@ async function runChecks(BASE) {
   r = await call(BASE, 'POST', '/api/products', { body: { name: 'x', description: 'y', price: 1 } });
   check('인증 없이 등록 401', r.status === 401);
   r = await call(BASE, 'POST', '/api/products', {
-    token,
+    jar: session,
     body: { name: 'x', description: 'y', price: -1 },
   });
   check('음수 가격 400', r.status === 400);
   r = await call(BASE, 'POST', '/api/products', {
-    token,
+    jar: session,
     body: { name: '가'.repeat(11), description: 'y', price: 1 },
   });
   check('상품명 10자 초과 400', r.status === 400);
 
-  r = await call(BASE, 'PATCH', `/api/products/${productId}`, { token, body: {} });
+  r = await call(BASE, 'PATCH', `/api/products/${productId}`, { jar: session, body: {} });
   check('수정 필드 없음 400', r.status === 400);
-  r = await call(BASE, 'PATCH', `/api/products/${productId}`, { token, body: { name: '수정상품' } });
+  r = await call(BASE, 'PATCH', `/api/products/${productId}`, { jar: session, body: { name: '수정상품' } });
   check('상품 수정 200', r.status === 200 && r.json?.data?.name === '수정상품');
   r = await call(BASE, 'PATCH', `/api/products/${productId}`, {
-    token: 'invalid.token.here',
+    jar: staleJar,
     body: { name: 'x' },
   });
   check('잘못된 토큰 401', r.status === 401);
 
-  r = await call(BASE, 'POST', `/api/products/${productId}/like`, { token });
+  r = await call(BASE, 'POST', `/api/products/${productId}/like`, { jar: session });
   check('상품 좋아요 200 (isLiked true)', r.status === 200 && r.json?.data?.isLiked === true);
-  r = await call(BASE, 'POST', `/api/products/${productId}/like`, { token });
+  r = await call(BASE, 'POST', `/api/products/${productId}/like`, { jar: session });
   check('중복 좋아요 409', r.status === 409);
-  r = await call(BASE, 'DELETE', `/api/products/${productId}/like`, { token });
+  r = await call(BASE, 'DELETE', `/api/products/${productId}/like`, { jar: session });
   check('좋아요 취소 200 (isLiked false)', r.status === 200 && r.json?.data?.isLiked === false);
-  r = await call(BASE, 'DELETE', `/api/products/${productId}/like`, { token });
+  r = await call(BASE, 'DELETE', `/api/products/${productId}/like`, { jar: session });
   check('좋아요 없음 취소 404', r.status === 404);
 
   section('[4] 댓글 · 문의 (작성/조회/수정/삭제)');
   r = await call(BASE, 'POST', `/api/products/${productId}/comments`, {
-    token,
+    jar: session,
     body: { content: '문의합니다' },
   });
   check('상품 문의 등록 201', r.status === 201 && Boolean(r.json?.data?.id));
@@ -170,37 +238,37 @@ async function runChecks(BASE) {
   r = await call(BASE, 'GET', `/api/products/${productId}/comments`);
   check('상품 문의 목록 200', r.status === 200 && Array.isArray(r.json?.data?.list));
   r = await call(BASE, 'POST', `/api/products/${productId}/comments`, {
-    token,
+    jar: session,
     body: { content: '가'.repeat(301) },
   });
   check('댓글 300자 초과 400', r.status === 400);
   r = await call(BASE, 'PATCH', `/api/comments/${productCommentId}`, {
-    token,
+    jar: session,
     body: { content: '수정된 문의' },
   });
   check('댓글 수정 200', r.status === 200);
-  r = await call(BASE, 'DELETE', `/api/comments/${productCommentId}`, { token });
+  r = await call(BASE, 'DELETE', `/api/comments/${productCommentId}`, { jar: session });
   check('댓글 삭제 204', r.status === 204);
 
   section('[5] 게시글 CRUD · 좋아요 · 댓글');
-  r = await call(BASE, 'POST', '/api/articles', { token, body: { title: '검증글', content: '내용' } });
+  r = await call(BASE, 'POST', '/api/articles', { jar: session, body: { title: '검증글', content: '내용' } });
   check('게시글 등록 201', r.status === 201 && Boolean(r.json?.data?.id));
   const articleId = r.json?.data?.id;
   r = await call(BASE, 'POST', '/api/articles', {
-    token,
+    jar: session,
     body: { title: '가'.repeat(31), content: 'x' },
   });
   check('제목 30자 초과 400', r.status === 400);
-  r = await call(BASE, 'POST', '/api/articles', { token, body: { title: '', content: '' } });
+  r = await call(BASE, 'POST', '/api/articles', { jar: session, body: { title: '', content: '' } });
   check('필수값 누락 400', r.status === 400);
-  r = await call(BASE, 'PATCH', `/api/articles/${articleId}`, { token, body: { content: '수정내용' } });
+  r = await call(BASE, 'PATCH', `/api/articles/${articleId}`, { jar: session, body: { content: '수정내용' } });
   check('게시글 수정 200', r.status === 200 && r.json?.data?.content === '수정내용');
-  r = await call(BASE, 'POST', `/api/articles/${articleId}/like`, { token });
+  r = await call(BASE, 'POST', `/api/articles/${articleId}/like`, { jar: session });
   check('게시글 좋아요 200', r.status === 200 && r.json?.data?.isLiked === true);
-  r = await call(BASE, 'DELETE', `/api/articles/${articleId}/like`, { token });
+  r = await call(BASE, 'DELETE', `/api/articles/${articleId}/like`, { jar: session });
   check('게시글 좋아요 취소 200', r.status === 200 && r.json?.data?.isLiked === false);
   r = await call(BASE, 'POST', `/api/articles/${articleId}/comments`, {
-    token,
+    jar: session,
     body: { content: '댓글' },
   });
   check('게시글 댓글 등록 201', r.status === 201);
@@ -208,7 +276,7 @@ async function runChecks(BASE) {
   r = await call(BASE, 'GET', `/api/articles/${articleId}/comments`);
   check('게시글 댓글 목록 200', r.status === 200);
   r = await call(BASE, 'PATCH', `/api/comments/${articleCommentId}`, {
-    token,
+    jar: session,
     body: { content: '댓글수정' },
   });
   check('게시글 댓글 수정 200', r.status === 200);
@@ -218,9 +286,9 @@ async function runChecks(BASE) {
   check('파일 없이 업로드 400', r.status === 400);
 
   section('[7] 정리 (등록한 데이터 삭제)');
-  r = await call(BASE, 'DELETE', `/api/articles/${articleId}`, { token });
+  r = await call(BASE, 'DELETE', `/api/articles/${articleId}`, { jar: session });
   check('게시글 삭제 204', r.status === 204);
-  r = await call(BASE, 'DELETE', `/api/products/${productId}`, { token });
+  r = await call(BASE, 'DELETE', `/api/products/${productId}`, { jar: session });
   check('상품 삭제 204', r.status === 204);
 
   section('[8] Swagger 명세');
@@ -228,7 +296,10 @@ async function runChecks(BASE) {
   const schemaCount = Object.keys(swaggerSpec.components.schemas).length;
   check(`paths ${pathCount}개 (>= 15)`, pathCount >= 15, `실측 ${pathCount}`);
   check(`schemas ${schemaCount}개 (>= 9)`, schemaCount >= 9, `실측 ${schemaCount}`);
-  check('bearerAuth 보안 스키마', Boolean(swaggerSpec.components.securitySchemes.bearerAuth));
+  check(
+    'accessToken 쿠키 보안 스키마',
+    Boolean(swaggerSpec.components.securitySchemes.accessTokenCookie),
+  );
 }
 
 async function main() {
