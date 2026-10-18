@@ -1,14 +1,16 @@
-import { BaseController } from './base-controller.js';
 import { flattenError, z } from 'zod';
 import { ERROR_MESSAGES, HTTP_STATUS } from '#constants';
 import { BadRequestException } from '#exceptions';
+import { BaseController } from '../base-controller.js';
 
 export class AuthController extends BaseController {
   #authService;
+  #cookieProvider;
 
-  constructor({ authService }) {
+  constructor({ authService, cookieProvider }) {
     super();
     this.#authService = authService;
+    this.#cookieProvider = cookieProvider;
   }
 
   routes() {
@@ -19,6 +21,7 @@ export class AuthController extends BaseController {
           fieldErrors: flattenError(result.error).fieldErrors,
         });
       }
+
       return result.data;
     };
 
@@ -43,36 +46,35 @@ export class AuthController extends BaseController {
       password: z.string().min(1, '비밀번호가 필요합니다.'),
     });
 
-    const refreshSchema = z.object({
-      refreshToken: z.string().min(1, ERROR_MESSAGES.REFRESH_TOKEN_MISSING),
-    });
-
-    const googleSchema = z.object({
-      code: z.string().min(1, ERROR_MESSAGES.GOOGLE_LOGIN_FAILED),
-    });
-
     this.router.post('/signUp', async (req, res) => {
-      const { email, nickname, password } = parsePayload(signUpSchema, req.body);
-      const data = await this.#authService.signUp({ email, nickname, password });
-      return res.status(HTTP_STATUS.CREATED).json({ success: true, data });
+      const { email, nickname, password } = parsePayload(
+        signUpSchema,
+        req.body,
+      );
+      const { user, tokens } = await this.#authService.signUp({
+        email,
+        nickname,
+        password,
+      });
+
+      this.#cookieProvider.setAuthCookies(res, tokens);
+      return res.status(HTTP_STATUS.CREATED).json({ success: true, data: user });
     });
 
     this.router.post('/signIn', async (req, res) => {
       const { email, password } = parsePayload(signInSchema, req.body);
-      const data = await this.#authService.signIn({ email, password });
-      return res.status(HTTP_STATUS.OK).json({ success: true, data });
+      const { user, tokens } = await this.#authService.signIn({
+        email,
+        password,
+      });
+
+      this.#cookieProvider.setAuthCookies(res, tokens);
+      return res.status(HTTP_STATUS.OK).json({ success: true, data: user });
     });
 
-    this.router.post('/refresh', async (req, res) => {
-      const { refreshToken } = parsePayload(refreshSchema, req.body);
-      const data = await this.#authService.refresh(refreshToken);
-      return res.status(HTTP_STATUS.OK).json({ success: true, data });
-    });
-
-    this.router.post('/google', async (req, res) => {
-      const { code } = parsePayload(googleSchema, req.body);
-      const data = await this.#authService.signInWithGoogle({ code });
-      return res.status(HTTP_STATUS.OK).json({ success: true, data });
+    this.router.post('/logout', (_req, res) => {
+      this.#cookieProvider.clearAuthCookies(res);
+      return res.status(HTTP_STATUS.NO_CONTENT).send();
     });
 
     return this.router;

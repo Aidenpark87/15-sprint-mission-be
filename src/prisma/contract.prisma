@@ -13,9 +13,23 @@ model User {
   comments          Comment[]
   likes             Like[]
   products          Product[]
+  socialAccounts    SocialAccount[]
 
   @@index([email], map: "User_email_key", unique: true)
   @@index([nickname], map: "User_nickname_key", unique: true)
+}
+
+model SocialAccount {
+  id         Int                @id(map: "SocialAccount_pkey") @default(autoincrement())
+  provider   String
+  providerId String
+  createdAt  TimestampString(3) @default(now())
+  updatedAt  temporal.timestampString(3, onCreate: now, onUpdate: now)
+  userId     Int
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "SocialAccount_userId_fkey", index: false)
+
+  @@index([provider, providerId], map: "SocialAccount_provider_providerId_key", unique: true)
+  @@index([userId], map: "SocialAccount_userId_idx")
 }
 
 model Article {

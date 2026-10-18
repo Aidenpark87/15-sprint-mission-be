@@ -1,57 +1,69 @@
 import { ERROR_MESSAGES } from '#constants';
 import { UnauthorizedException } from '#exceptions';
 
-function extractBearerToken(authorization) {
-  if (typeof authorization !== 'string') {
-    return null;
-  }
-
-  const [scheme, token] = authorization.split(' ');
-  if (scheme !== 'Bearer' || !token) {
-    return null;
-  }
-
-  return token;
-}
-
 export class AuthMiddleware {
   #userRepository;
   #tokenProvider;
+  #authService;
+  #cookieProvider;
 
-  constructor({ userRepository, tokenProvider }) {
+  constructor({ userRepository, tokenProvider, authService, cookieProvider }) {
     this.#userRepository = userRepository;
     this.#tokenProvider = tokenProvider;
+    this.#authService = authService;
+    this.#cookieProvider = cookieProvider;
   }
 
-  async authenticate(req) {
-    const token = extractBearerToken(req.headers.authorization);
-    if (!token) {
-      throw new UnauthorizedException(ERROR_MESSAGES.ACCESS_TOKEN_MISSING);
+  async resolveUser(req, res) {
+    const { accessToken, refreshToken } = req.cookies ?? {};
+
+    if (accessToken) {
+      const payload = this.#tokenProvider.verifyAccessToken(accessToken);
+      if (payload) {
+        const user = await this.#userRepository.findById(Number(payload.sub));
+        if (user) {
+          return user;
+        }
+      }
     }
 
-    const payload = this.#tokenProvider.verifyToken(token);
-    const user = await this.#userRepository.findById(Number(payload.sub));
-    if (!user) {
-      throw new UnauthorizedException(ERROR_MESSAGES.INVALID_TOKEN);
+    if (!refreshToken) {
+      if (accessToken) {
+        this.#cookieProvider.clearAuthCookies(res);
+      }
+      return null;
     }
 
-    return user;
-  }
-
-  requireAuth = async (req, _res, next) => {
     try {
-      req.user = await this.authenticate(req);
+      const { user, tokens } =
+        await this.#authService.refreshTokens(refreshToken);
+      this.#cookieProvider.setAuthCookies(res, tokens);
+      return user;
+    } catch {
+      this.#cookieProvider.clearAuthCookies(res);
+      return null;
+    }
+  }
+
+  requireAuth = async (req, res, next) => {
+    try {
+      const user = await this.resolveUser(req, res);
+      if (!user) {
+        throw new UnauthorizedException(ERROR_MESSAGES.ACCESS_TOKEN_MISSING);
+      }
+
+      req.user = user;
       next();
     } catch (error) {
       next(error);
     }
   };
 
-  optionalAuth = async (req, _res, next) => {
+  optionalAuth = async (req, res, next) => {
     try {
-      const token = extractBearerToken(req.headers.authorization);
-      if (token) {
-        req.user = await this.authenticate(req);
+      const user = await this.resolveUser(req, res);
+      if (user) {
+        req.user = user;
       }
     } catch {
       req.user = undefined;

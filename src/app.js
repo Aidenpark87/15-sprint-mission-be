@@ -1,6 +1,8 @@
+import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
 import swaggerUi from 'swagger-ui-express';
+import { corsOrigins } from '#config';
 import { errorHandler } from '#middlewares';
 import { UPLOAD_DIR } from '#controllers';
 import { swaggerSpec } from './docs/swagger.js';
@@ -17,8 +19,9 @@ export class App {
   }
 
   middleware() {
-    this.app.use(cors());
+    this.app.use(cors({ origin: corsOrigins, credentials: true }));
     this.app.use(express.json());
+    this.app.use(cookieParser());
     this.app.use('/uploads', express.static(UPLOAD_DIR));
   }
 

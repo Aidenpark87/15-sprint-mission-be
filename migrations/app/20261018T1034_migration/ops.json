@@ -1,0 +1,161 @@
+[
+  {
+    "id": "table.SocialAccount",
+    "label": "Create table \"SocialAccount\"",
+    "summary": "Creates table \"SocialAccount\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "SocialAccount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"SocialAccount\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SocialAccount\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"SocialAccount\"",
+        "sql": "CREATE TABLE \"public\".\"SocialAccount\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"provider\" text NOT NULL,\n  \"providerId\" text NOT NULL,\n  \"updatedAt\" timestamp(3) NOT NULL,\n  \"userId\" int4 NOT NULL,\n  CONSTRAINT \"SocialAccount_pkey\" PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"SocialAccount\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SocialAccount\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.SocialAccount.SocialAccount_provider_providerId_key",
+    "label": "Create index \"SocialAccount_provider_providerId_key\" on \"SocialAccount\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "SocialAccount_provider_providerId_key",
+        "table": "SocialAccount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"SocialAccount_provider_providerId_key\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SocialAccount_provider_providerId_key\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"SocialAccount_provider_providerId_key\"",
+        "sql": "CREATE UNIQUE INDEX \"SocialAccount_provider_providerId_key\" ON \"public\".\"SocialAccount\" (\"provider\", \"providerId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"SocialAccount_provider_providerId_key\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SocialAccount_provider_providerId_key\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.SocialAccount.SocialAccount_userId_idx",
+    "label": "Create index \"SocialAccount_userId_idx\" on \"SocialAccount\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "SocialAccount_userId_idx",
+        "table": "SocialAccount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"SocialAccount_userId_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SocialAccount_userId_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"SocialAccount_userId_idx\"",
+        "sql": "CREATE INDEX \"SocialAccount_userId_idx\" ON \"public\".\"SocialAccount\" (\"userId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"SocialAccount_userId_idx\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SocialAccount_userId_idx\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.SocialAccount.SocialAccount_userId_fkey",
+    "label": "Add foreign key \"SocialAccount_userId_fkey\" on \"SocialAccount\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "SocialAccount_userId_fkey",
+        "table": "SocialAccount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"SocialAccount_userId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "SocialAccount_userId_fkey",
+          "public",
+          "\"public\".\"SocialAccount\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"SocialAccount_userId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"SocialAccount\"\nADD CONSTRAINT \"SocialAccount_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"SocialAccount_userId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "SocialAccount_userId_fkey",
+          "public",
+          "\"public\".\"SocialAccount\""
+        ]
+      }
+    ]
+  }
+]

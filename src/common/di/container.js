@@ -19,6 +19,7 @@ import {
   AuthService,
   CommentService,
   ProductService,
+  SocialAuthService,
 } from '#services';
 import {
   ArticleController,
@@ -27,9 +28,15 @@ import {
   Controller,
   ImageController,
   ProductController,
+  SocialAuthController,
   UserController,
 } from '#controllers';
-import { GoogleProvider, PasswordProvider, TokenProvider } from '#providers';
+import {
+  CookieProvider,
+  OAuthStateProvider,
+  PasswordProvider,
+  TokenProvider,
+} from '#providers';
 import { AuthMiddleware } from '#middlewares';
 
 export const createContainer = () => {
@@ -41,6 +48,8 @@ export const createContainer = () => {
   container.register({
     config: asValue(config),
     db: asValue(db),
+    oauthStateSecret: asValue(config.OAUTH_STATE_SECRET),
+    clientBaseUrl: asValue(config.CLIENT_BASE_URL),
 
     userRepository: asClass(UserRepository, { lifetime: Lifetime.SINGLETON }),
     productRepository: asClass(ProductRepository, { lifetime: Lifetime.SINGLETON }),
@@ -50,9 +59,15 @@ export const createContainer = () => {
 
     passwordProvider: asClass(PasswordProvider, { lifetime: Lifetime.SINGLETON }),
     tokenProvider: asClass(TokenProvider, { lifetime: Lifetime.SINGLETON }),
-    googleProvider: asClass(GoogleProvider, { lifetime: Lifetime.SINGLETON }),
+    cookieProvider: asClass(CookieProvider, { lifetime: Lifetime.SINGLETON }),
+    oauthStateProvider: asClass(OAuthStateProvider, {
+      lifetime: Lifetime.SINGLETON,
+    }),
 
     authService: asClass(AuthService, { lifetime: Lifetime.SINGLETON }),
+    socialAuthService: asClass(SocialAuthService, {
+      lifetime: Lifetime.SINGLETON,
+    }),
     productService: asClass(ProductService, { lifetime: Lifetime.SINGLETON }),
     articleService: asClass(ArticleService, { lifetime: Lifetime.SINGLETON }),
     commentService: asClass(CommentService, { lifetime: Lifetime.SINGLETON }),
@@ -63,6 +78,9 @@ export const createContainer = () => {
     articleController: asClass(ArticleController, { lifetime: Lifetime.SINGLETON }),
     commentController: asClass(CommentController, { lifetime: Lifetime.SINGLETON }),
     authController: asClass(AuthController, { lifetime: Lifetime.SINGLETON }),
+    socialAuthController: asClass(SocialAuthController, {
+      lifetime: Lifetime.SINGLETON,
+    }),
     userController: asClass(UserController, { lifetime: Lifetime.SINGLETON }),
     imageController: asClass(ImageController, { lifetime: Lifetime.SINGLETON }),
 

@@ -21,9 +21,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'1bce3ff41ff79164dc545541cd79ee6f033d4b02ba937a110f1298b0211fa6ce'>;
+  StorageHashBase<'98118c36ade48027f001c39ab5a46f36428b3fb9dc109f5b2339984d5dfe393c'>;
 export type ExecutionHash =
-  ExecutionHashBase<'d9274a3ba9cae95ffe26ffa8047ee5b0b1c6f097d5656c74cdfd7b033c87db59'>;
+  ExecutionHashBase<'9a29a6d4253679cdbcb7060292002a44faed76e5f47a42f2b0213497f3a5bd3d'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -276,6 +276,14 @@ export type FieldOutputTypes = {
       readonly tags: ReadonlyArray<CodecTypes['pg/text@1']['output']> | null;
       readonly updatedAt: TimestampString<3>;
     };
+    readonly SocialAccount: {
+      readonly createdAt: TimestampString<3>;
+      readonly id: CodecTypes['pg/int4@1']['output'];
+      readonly provider: CodecTypes['pg/text@1']['output'];
+      readonly providerId: CodecTypes['pg/text@1']['output'];
+      readonly updatedAt: TimestampString<3>;
+      readonly userId: CodecTypes['pg/int4@1']['output'];
+    };
     readonly User: {
       readonly createdAt: TimestampString<3>;
       readonly email: CodecTypes['pg/text@1']['output'];
@@ -327,6 +335,14 @@ export type FieldInputTypes = {
       readonly price: CodecTypes['pg/int4@1']['input'];
       readonly tags: ReadonlyArray<CodecTypes['pg/text@1']['input']> | null;
       readonly updatedAt: CodecTypes['pg/timestamp-string@1']['input'];
+    };
+    readonly SocialAccount: {
+      readonly createdAt: CodecTypes['pg/timestamp-string@1']['input'];
+      readonly id: CodecTypes['pg/int4@1']['input'];
+      readonly provider: CodecTypes['pg/text@1']['input'];
+      readonly providerId: CodecTypes['pg/text@1']['input'];
+      readonly updatedAt: CodecTypes['pg/timestamp-string@1']['input'];
+      readonly userId: CodecTypes['pg/int4@1']['input'];
     };
     readonly User: {
       readonly createdAt: CodecTypes['pg/timestamp-string@1']['input'];
@@ -380,6 +396,14 @@ export type StorageColumnTypes = {
       readonly tags: ReadonlyArray<CodecTypes['pg/text@1']['output']> | null;
       readonly updatedAt: TimestampString<3>;
     };
+    readonly SocialAccount: {
+      readonly createdAt: TimestampString<3>;
+      readonly id: CodecTypes['pg/int4@1']['output'];
+      readonly provider: CodecTypes['pg/text@1']['output'];
+      readonly providerId: CodecTypes['pg/text@1']['output'];
+      readonly updatedAt: TimestampString<3>;
+      readonly userId: CodecTypes['pg/int4@1']['output'];
+    };
     readonly User: {
       readonly createdAt: TimestampString<3>;
       readonly email: CodecTypes['pg/text@1']['output'];
@@ -431,6 +455,14 @@ export type StorageColumnInputTypes = {
       readonly price: CodecTypes['pg/int4@1']['input'];
       readonly tags: ReadonlyArray<CodecTypes['pg/text@1']['input']> | null;
       readonly updatedAt: CodecTypes['pg/timestamp-string@1']['input'];
+    };
+    readonly SocialAccount: {
+      readonly createdAt: CodecTypes['pg/timestamp-string@1']['input'];
+      readonly id: CodecTypes['pg/int4@1']['input'];
+      readonly provider: CodecTypes['pg/text@1']['input'];
+      readonly providerId: CodecTypes['pg/text@1']['input'];
+      readonly updatedAt: CodecTypes['pg/timestamp-string@1']['input'];
+      readonly userId: CodecTypes['pg/int4@1']['input'];
     };
     readonly User: {
       readonly createdAt: CodecTypes['pg/timestamp-string@1']['input'];
@@ -500,6 +532,16 @@ export namespace Models {
     owner: public_User | null;
     readonly [RelationKeys]?: 'comments' | 'likes' | 'owner';
   };
+  export type public_SocialAccount = {
+    createdAt: TimestampString<3>;
+    id: CodecTypes['pg/int4@1']['output'];
+    provider: CodecTypes['pg/text@1']['output'];
+    providerId: CodecTypes['pg/text@1']['output'];
+    updatedAt: TimestampString<3>;
+    userId: CodecTypes['pg/int4@1']['output'];
+    user: public_User;
+    readonly [RelationKeys]?: 'user';
+  };
   export type public_User = {
     createdAt: TimestampString<3>;
     email: CodecTypes['pg/text@1']['output'];
@@ -512,7 +554,8 @@ export namespace Models {
     comments: public_Comment[];
     likes: public_Like[];
     products: public_Product[];
-    readonly [RelationKeys]?: 'articles' | 'comments' | 'likes' | 'products';
+    socialAccounts: public_SocialAccount[];
+    readonly [RelationKeys]?: 'articles' | 'comments' | 'likes' | 'products' | 'socialAccounts';
   };
 }
 
@@ -522,6 +565,7 @@ export declare const models: {
     Comment: Models.public_Comment;
     Like: Models.public_Like;
     Product: Models.public_Product;
+    SocialAccount: Models.public_SocialAccount;
     User: Models.public_User;
   };
 };
@@ -928,6 +972,85 @@ type ContractBase = Omit<
                 },
               ];
             };
+            readonly SocialAccount: {
+              columns: {
+                readonly createdAt: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'function';
+                    readonly expression: 'autoincrement()';
+                  };
+                  readonly many: false;
+                };
+                readonly provider: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly providerId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly updatedAt: {
+                  readonly dataType: 'pg/timestamp';
+                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly userId: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: {
+                readonly columns: readonly ['id'];
+                readonly name: 'SocialAccount_pkey';
+              };
+              uniques: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'SocialAccount_provider_providerId_key';
+                  readonly columns: readonly ['provider', 'providerId'];
+                  readonly unique: true;
+                },
+                {
+                  readonly name: 'SocialAccount_userId_idx';
+                  readonly columns: readonly ['userId'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'SocialAccount';
+                    readonly columns: readonly ['userId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                  readonly name: 'SocialAccount_userId_fkey';
+                },
+              ];
+            };
             readonly User: {
               columns: {
                 readonly createdAt: {
@@ -1011,6 +1134,10 @@ type ContractBase = Omit<
     readonly Comment: { readonly namespace: 'public' & NamespaceId; readonly model: 'Comment' };
     readonly Like: { readonly namespace: 'public' & NamespaceId; readonly model: 'Like' };
     readonly Product: { readonly namespace: 'public' & NamespaceId; readonly model: 'Product' };
+    readonly SocialAccount: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'SocialAccount';
+    };
     readonly User: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
   };
   readonly domain: {
@@ -1373,6 +1500,65 @@ type ContractBase = Omit<
               };
             };
           };
+          readonly SocialAccount: {
+            readonly fields: {
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly provider: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly providerId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamp-string@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly userId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+            };
+            readonly relations: {
+              readonly user: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['userId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'SocialAccount';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly id: { readonly column: 'id' };
+                readonly provider: { readonly column: 'provider' };
+                readonly providerId: { readonly column: 'providerId' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
+                readonly userId: { readonly column: 'userId' };
+              };
+            };
+          };
           readonly User: {
             readonly fields: {
               readonly createdAt: {
@@ -1454,6 +1640,17 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['ownerId'];
                 };
               };
+              readonly socialAccounts: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'SocialAccount';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['userId'];
+                };
+              };
             };
             readonly storage: {
               readonly table: 'User';
@@ -1528,6 +1725,15 @@ type ContractBase = Omit<
           readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'Product';
+            readonly field: 'updatedAt';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'SocialAccount';
             readonly field: 'updatedAt';
             readonly namespace: 'public';
           };

@@ -5,7 +5,7 @@ export * from './base-controller.js';
 export * from './product-controller.js';
 export * from './article-controller.js';
 export * from './comment-controller.js';
-export * from './auth-controller.js';
+export * from './auth/index.js';
 export * from './user-controller.js';
 export * from './image-controller.js';
 
@@ -14,6 +14,7 @@ export class Controller extends BaseController {
   #articleController;
   #commentController;
   #authController;
+  #socialAuthController;
   #userController;
   #imageController;
 
@@ -22,6 +23,7 @@ export class Controller extends BaseController {
     articleController,
     commentController,
     authController,
+    socialAuthController,
     userController,
     imageController,
   }) {
@@ -30,6 +32,7 @@ export class Controller extends BaseController {
     this.#articleController = articleController;
     this.#commentController = commentController;
     this.#authController = authController;
+    this.#socialAuthController = socialAuthController;
     this.#userController = userController;
     this.#imageController = imageController;
   }
@@ -43,6 +46,7 @@ export class Controller extends BaseController {
     this.router.use('/articles', this.#articleController.routes());
     this.router.use('/comments', this.#commentController.routes());
     this.router.use('/auth', this.#authController.routes());
+    this.router.use('/auth', this.#socialAuthController.routes());
     this.router.use('/users', this.#userController.routes());
     this.router.use('/images', this.#imageController.routes());
 

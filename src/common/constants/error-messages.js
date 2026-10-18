@@ -37,6 +37,10 @@ export const ERROR_MESSAGES = {
   COMMENT_TOO_LONG: '내용은 300자 이내로 입력해주세요.',
   REFRESH_TOKEN_MISSING: '리프레시 토큰이 필요합니다.',
   INVALID_REFRESH_TOKEN: '리프레시 토큰이 유효하지 않습니다. 다시 로그인해 주세요.',
-  GOOGLE_LOGIN_UNAVAILABLE: '구글 로그인이 아직 설정되지 않았어요. 잠시 후 다시 시도해 주세요.',
-  GOOGLE_LOGIN_FAILED: '구글 로그인에 실패했어요. 다시 시도해 주세요.',
+  UNSUPPORTED_SOCIAL_PROVIDER: '지원하지 않는 소셜 로그인입니다.',
+  SOCIAL_LOGIN_UNAVAILABLE: '소셜 로그인이 아직 설정되지 않았어요. 잠시 후 다시 시도해 주세요.',
+  SOCIAL_AUTH_CODE_REQUIRED: '소셜 로그인 인가 코드가 필요합니다.',
+  INVALID_SOCIAL_AUTH_STATE: '소셜 로그인 요청이 만료되었거나 올바르지 않습니다. 다시 시도해 주세요.',
+  SOCIAL_ACCOUNT_LINK_REQUIRED: '이미 가입된 이메일입니다. 기존 계정으로 로그인한 뒤 소셜 계정을 연결해 주세요.',
+  SOCIAL_AUTH_FAILED: '소셜 로그인에 실패했어요. 다시 시도해 주세요.',
 };

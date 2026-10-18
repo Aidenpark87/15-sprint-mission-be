@@ -1,8 +1,9 @@
 const securitySchemes = {
-  bearerAuth: {
-    type: 'http',
-    scheme: 'bearer',
-    bearerFormat: 'JWT',
+  accessTokenCookie: {
+    type: 'apiKey',
+    in: 'cookie',
+    name: 'accessToken',
+    description: '로그인·소셜 로그인 성공 시 설정되는 Access Token 쿠키',
   },
 };
 
@@ -12,6 +13,17 @@ const schemas = {
     properties: {
       success: { type: 'boolean', example: false },
       message: { type: 'string', example: '요청한 리소스를 찾을 수 없습니다.' },
+    },
+  },
+  User: {
+    type: 'object',
+    properties: {
+      id: { type: 'integer', example: 1 },
+      email: { type: 'string', format: 'email', example: 'panda@pandamarket.com' },
+      nickname: { type: 'string', example: '판다' },
+      image: { type: 'string', nullable: true, example: null },
+      createdAt: { type: 'string', example: '2026-10-18 10:00:00.000' },
+      updatedAt: { type: 'string', example: '2026-10-18 10:00:00.000' },
     },
   },
   Product: {
@@ -90,13 +102,6 @@ const schemas = {
     properties: {
       list: { type: 'array', items: { $ref: '#/components/schemas/Comment' } },
       nextCursor: { type: 'integer', nullable: true, example: null },
-    },
-  },
-  AuthResult: {
-    type: 'object',
-    properties: {
-      accessToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
-      refreshToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
     },
   },
   UploadResult: {
@@ -216,7 +221,7 @@ export const swaggerDefinition = {
                   type: 'object',
                   properties: {
                     success: { type: 'boolean' },
-                    data: { $ref: '#/components/schemas/AuthResult' },
+                    data: { $ref: '#/components/schemas/User' },
                   },
                 },
               },
@@ -247,55 +252,70 @@ export const swaggerDefinition = {
           },
         },
         responses: {
-          ...success('#/components/schemas/AuthResult'),
+          ...success('#/components/schemas/User'),
           401: { description: '이메일 또는 비밀번호 불일치', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
         },
       },
     },
-    '/auth/refresh': {
+    '/auth/logout': {
       post: {
         tags: ['Auth'],
-        summary: '액세스 토큰 재발급',
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                required: ['refreshToken'],
-                properties: { refreshToken: { type: 'string' } },
-              },
-            },
-          },
-        },
+        summary: '로그아웃',
+        description: '인증 쿠키(accessToken·refreshToken)를 삭제합니다.',
         responses: {
-          ...success('#/components/schemas/AuthResult'),
-          401: { description: '리프레시 토큰 무효', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          204: { description: '로그아웃 성공(본문 없음)' },
         },
       },
     },
-    '/auth/google': {
-      post: {
+    '/auth/social/{provider}/login': {
+      get: {
         tags: ['Auth'],
-        summary: '구글 OAuth 로그인',
+        summary: '소셜 로그인 시작',
         description:
-          'GOOGLE_CLIENT_ID·GOOGLE_CLIENT_SECRET 이 설정된 경우에만 동작합니다. 미설정 시 400 을 반환합니다.',
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                required: ['code'],
-                properties: { code: { type: 'string', description: '구글 인가 코드' } },
-              },
-            },
+          '서명된 state(HMAC·10분 만료)와 PKCE code_challenge 를 만들어 공급자 인가 페이지로 302 리다이렉트합니다. transactionNonce·codeVerifier 는 쿠키로 보관합니다.',
+        parameters: [
+          {
+            name: 'provider',
+            in: 'path',
+            required: true,
+            schema: { type: 'string', enum: ['google', 'kakao'] },
           },
-        },
+          {
+            name: 'next',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', default: '/' },
+            description: '로그인 후 돌아갈 프론트 내부 경로(외부 주소는 / 로 대체)',
+          },
+        ],
         responses: {
-          ...success('#/components/schemas/AuthResult'),
-          400: { description: '구글 로그인 미설정 또는 코드 오류', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
-          401: { description: '구글 인증 실패', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+          302: { description: '공급자 인가 페이지로 리다이렉트' },
+          400: { description: '지원하지 않는 공급자 또는 미설정', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+        },
+      },
+    },
+    '/auth/social/callback/{provider}': {
+      get: {
+        tags: ['Auth'],
+        summary: '소셜 로그인 콜백',
+        description:
+          '공급자가 돌려준 인가 코드를 state·PKCE 로 검증한 뒤 토큰 교환 → 프로필 조회 → 유저 생성/조회 → 인증 쿠키 설정 후 프론트로 302 리다이렉트합니다. 실패하면 JSON 대신 `/signin?error=<code>` 로 리다이렉트합니다(코드: `link_required`·`auth_failed`·`invalid_request`·`unknown`).',
+        parameters: [
+          {
+            name: 'provider',
+            in: 'path',
+            required: true,
+            schema: { type: 'string', enum: ['google', 'kakao'] },
+          },
+          { name: 'code', in: 'query', required: false, schema: { type: 'string' } },
+          { name: 'state', in: 'query', required: true, schema: { type: 'string' } },
+          { name: 'error', in: 'query', required: false, schema: { type: 'string' } },
+        ],
+        responses: {
+          302: {
+            description:
+              '성공 시 `next`(또는 `/`)로, 실패 시 `/signin?error=<code>` 로 리다이렉트하며 인증 쿠키를 설정·삭제합니다.',
+          },
         },
       },
     },
@@ -303,7 +323,7 @@ export const swaggerDefinition = {
       get: {
         tags: ['Users'],
         summary: '내 정보 조회',
-        security: [{ bearerAuth: [] }],
+        security: [{ accessTokenCookie: [] }],
         responses: {
           200: {
             description: '성공',
@@ -341,7 +361,7 @@ export const swaggerDefinition = {
       post: {
         tags: ['Products'],
         summary: '상품 등록',
-        security: [{ bearerAuth: [] }],
+        security: [{ accessTokenCookie: [] }],
         requestBody: {
           required: true,
           content: {
@@ -400,7 +420,7 @@ export const swaggerDefinition = {
       patch: {
         tags: ['Products'],
         summary: '상품 수정 (등록자만)',
-        security: [{ bearerAuth: [] }],
+        security: [{ accessTokenCookie: [] }],
         parameters: [{ name: 'productId', in: 'path', required: true, schema: { type: 'integer' } }],
         requestBody: {
           content: {
@@ -429,7 +449,7 @@ export const swaggerDefinition = {
       delete: {
         tags: ['Products'],
         summary: '상품 삭제 (등록자만)',
-        security: [{ bearerAuth: [] }],
+        security: [{ accessTokenCookie: [] }],
         parameters: [{ name: 'productId', in: 'path', required: true, schema: { type: 'integer' } }],
         responses: {
           204: { description: '삭제 성공' },
@@ -443,7 +463,7 @@ export const swaggerDefinition = {
       post: {
         tags: ['Products'],
         summary: '상품 좋아요',
-        security: [{ bearerAuth: [] }],
+        security: [{ accessTokenCookie: [] }],
         parameters: [{ name: 'productId', in: 'path', required: true, schema: { type: 'integer' } }],
         responses: {
           ...success('#/components/schemas/Product'),
@@ -455,7 +475,7 @@ export const swaggerDefinition = {
       delete: {
         tags: ['Products'],
         summary: '상품 좋아요 취소',
-        security: [{ bearerAuth: [] }],
+        security: [{ accessTokenCookie: [] }],
         parameters: [{ name: 'productId', in: 'path', required: true, schema: { type: 'integer' } }],
         responses: {
           ...success('#/components/schemas/Product'),
@@ -478,7 +498,7 @@ export const swaggerDefinition = {
       post: {
         tags: ['Comments'],
         summary: '상품 문의 등록',
-        security: [{ bearerAuth: [] }],
+        security: [{ accessTokenCookie: [] }],
         parameters: [{ name: 'productId', in: 'path', required: true, schema: { type: 'integer' } }],
         requestBody: {
           required: true,
@@ -520,7 +540,7 @@ export const swaggerDefinition = {
       post: {
         tags: ['Articles'],
         summary: '게시글 등록 (이미지 최대 3장)',
-        security: [{ bearerAuth: [] }],
+        security: [{ accessTokenCookie: [] }],
         requestBody: {
           required: true,
           content: {
@@ -577,7 +597,7 @@ export const swaggerDefinition = {
       patch: {
         tags: ['Articles'],
         summary: '게시글 수정 (작성자만)',
-        security: [{ bearerAuth: [] }],
+        security: [{ accessTokenCookie: [] }],
         parameters: [{ name: 'articleId', in: 'path', required: true, schema: { type: 'integer' } }],
         requestBody: {
           content: {
@@ -604,7 +624,7 @@ export const swaggerDefinition = {
       delete: {
         tags: ['Articles'],
         summary: '게시글 삭제 (작성자만)',
-        security: [{ bearerAuth: [] }],
+        security: [{ accessTokenCookie: [] }],
         parameters: [{ name: 'articleId', in: 'path', required: true, schema: { type: 'integer' } }],
         responses: {
           204: { description: '삭제 성공' },
@@ -618,7 +638,7 @@ export const swaggerDefinition = {
       post: {
         tags: ['Articles'],
         summary: '게시글 좋아요',
-        security: [{ bearerAuth: [] }],
+        security: [{ accessTokenCookie: [] }],
         parameters: [{ name: 'articleId', in: 'path', required: true, schema: { type: 'integer' } }],
         responses: {
           ...success('#/components/schemas/Article'),
@@ -630,7 +650,7 @@ export const swaggerDefinition = {
       delete: {
         tags: ['Articles'],
         summary: '게시글 좋아요 취소',
-        security: [{ bearerAuth: [] }],
+        security: [{ accessTokenCookie: [] }],
         parameters: [{ name: 'articleId', in: 'path', required: true, schema: { type: 'integer' } }],
         responses: {
           ...success('#/components/schemas/Article'),
@@ -653,7 +673,7 @@ export const swaggerDefinition = {
       post: {
         tags: ['Comments'],
         summary: '게시글 댓글 등록',
-        security: [{ bearerAuth: [] }],
+        security: [{ accessTokenCookie: [] }],
         parameters: [{ name: 'articleId', in: 'path', required: true, schema: { type: 'integer' } }],
         requestBody: {
           required: true,
@@ -689,7 +709,7 @@ export const swaggerDefinition = {
       patch: {
         tags: ['Comments'],
         summary: '댓글·문의 수정 (작성자만)',
-        security: [{ bearerAuth: [] }],
+        security: [{ accessTokenCookie: [] }],
         parameters: [{ name: 'commentId', in: 'path', required: true, schema: { type: 'integer' } }],
         requestBody: {
           required: true,
@@ -714,7 +734,7 @@ export const swaggerDefinition = {
       delete: {
         tags: ['Comments'],
         summary: '댓글·문의 삭제 (작성자만)',
-        security: [{ bearerAuth: [] }],
+        security: [{ accessTokenCookie: [] }],
         parameters: [{ name: 'commentId', in: 'path', required: true, schema: { type: 'integer' } }],
         responses: {
           204: { description: '삭제 성공' },

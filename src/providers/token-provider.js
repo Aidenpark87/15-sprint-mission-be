@@ -1,9 +1,7 @@
 import jwt from 'jsonwebtoken';
-import { ERROR_MESSAGES } from '#constants';
-import { UnauthorizedException } from '#exceptions';
 
-const ACCESS_TOKEN_EXPIRES_IN = '1h';
-const REFRESH_TOKEN_EXPIRES_IN = '14d';
+const ACCESS_TOKEN_EXPIRES_IN = '15m';
+const REFRESH_TOKEN_EXPIRES_IN = '7d';
 
 export class TokenProvider {
   #secret;
@@ -31,27 +29,20 @@ export class TokenProvider {
     };
   }
 
-  verifyToken(token) {
-    try {
-      const payload = jwt.verify(token, this.#secret);
-      if (payload.type === 'refresh') {
-        throw new UnauthorizedException(ERROR_MESSAGES.INVALID_TOKEN);
-      }
-      return payload;
-    } catch {
-      throw new UnauthorizedException(ERROR_MESSAGES.INVALID_TOKEN);
-    }
+  verifyAccessToken(token) {
+    return this.#verify(token, 'access');
   }
 
   verifyRefreshToken(token) {
+    return this.#verify(token, 'refresh');
+  }
+
+  #verify(token, expectedType) {
     try {
       const payload = jwt.verify(token, this.#secret);
-      if (payload.type !== 'refresh') {
-        throw new UnauthorizedException(ERROR_MESSAGES.INVALID_REFRESH_TOKEN);
-      }
-      return payload;
+      return payload.type === expectedType ? payload : null;
     } catch {
-      throw new UnauthorizedException(ERROR_MESSAGES.INVALID_REFRESH_TOKEN);
+      return null;
     }
   }
 }

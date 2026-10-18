@@ -24,4 +24,29 @@ export class UserRepository {
       .select(...PUBLIC_FIELDS)
       .first();
   }
+
+  findBySocialAccount(provider, providerId) {
+    return this.#db.orm.public.User.where((user) =>
+      user.socialAccounts.some({ provider, providerId }),
+    )
+      .select(...PUBLIC_FIELDS)
+      .first();
+  }
+
+  createWithSocialAccount({
+    email,
+    nickname,
+    encryptedPassword,
+    image = null,
+    provider,
+    providerId,
+  }) {
+    return this.#db.orm.public.User.select(...PUBLIC_FIELDS).create({
+      email,
+      nickname,
+      image,
+      encryptedPassword,
+      socialAccounts: (accounts) => accounts.create([{ provider, providerId }]),
+    });
+  }
 }
