@@ -17,32 +17,39 @@ const SEED_DATE_TO = '2026-10-04';
 
 const PRODUCT_TAG_POOL = ['신상품', '베스트', '리퍼브', '한정판', '무료배송'];
 
-const SEED_IMAGE_POOL = [
-  '/uploads/seed/1792114615524-904290374.jpg',
-  '/uploads/seed/1792115054630-480197689.jpg',
-  '/uploads/seed/1792115072372-784276958.jpg',
-  '/uploads/seed/1792115329104-861494006.jpg',
-  '/uploads/seed/1792115520412-129669762.jpg',
-  '/uploads/seed/1792115520418-496265117.jpg',
-  '/uploads/seed/1792115581438-224246519.jpg',
-  '/uploads/seed/1792115581439-912652513.jpg',
-  '/uploads/seed/1792115788287-958757612.jpg',
-  '/uploads/seed/1792116504677-409996226.jpg',
-  '/uploads/seed/1792116514037-327195778.jpg',
-  '/uploads/seed/1792116541399-200041047.jpg',
-  '/uploads/seed/1792130141912-174851857.jpg',
-  '/uploads/seed/1792144447893-262668810.jpg',
-  '/uploads/seed/1792144459968-431598963.jpg',
-  '/uploads/seed/1792311314331-770908361.jpg',
-];
+const SEED_IMAGE_POOL = Array.from(
+  { length: 17 },
+  (_, index) => `/uploads/seed/seed-${String(index + 1).padStart(2, '0')}.jpg`,
+);
 
 const IMAGE_RATIO_MODULUS = 10;
-const IMAGE_RATIO_THRESHOLD = 7;
+const IMAGE_RATIO_THRESHOLD = 9;
+const IMAGE_SPREAD_MULTIPLIER = 7;
+const IMAGE_SPREAD_OFFSET = 3;
 
-const seedImagesFor = (index) =>
-  index % IMAGE_RATIO_MODULUS < IMAGE_RATIO_THRESHOLD
-    ? [SEED_IMAGE_POOL[index % SEED_IMAGE_POOL.length]]
-    : [];
+const imageCountFor = (seedNo) => {
+  const bucket = seedNo % IMAGE_RATIO_MODULUS;
+
+  if (bucket >= IMAGE_RATIO_THRESHOLD) return 0;
+  if (bucket < 6) return 1;
+  if (bucket < 8) return 2;
+
+  return 3;
+};
+
+const seedImagesFor = (seedNo) => {
+  const count = imageCountFor(seedNo);
+  if (count === 0) return [];
+
+  const start =
+    (seedNo * IMAGE_SPREAD_MULTIPLIER + IMAGE_SPREAD_OFFSET) %
+    SEED_IMAGE_POOL.length;
+
+  return Array.from(
+    { length: count },
+    (_, offset) => SEED_IMAGE_POOL[(start + offset) % SEED_IMAGE_POOL.length],
+  );
+};
 
 const ARTICLE_AUTHOR_POOL = [
   '행복한 판다',
