@@ -89,9 +89,15 @@ export class SocialAuthController extends BaseController {
       }
 
       if (error) {
-        throw new UnauthorizedException(
+        const socialError = new UnauthorizedException(
           errorDescription || ERROR_MESSAGES.SOCIAL_AUTH_FAILED,
         );
+
+        if (error === 'access_denied') {
+          socialError.errorCode = 'consent_cancelled';
+        }
+
+        throw socialError;
       }
 
       if (!code) {
@@ -116,12 +122,13 @@ export class SocialAuthController extends BaseController {
   }
 
   #buildClientErrorUrl(caught) {
+    const statusCodeMap = {
+      409: 'link_required',
+      401: 'auth_failed',
+      400: 'invalid_request',
+    };
     const errorCode =
-      {
-        409: 'link_required',
-        401: 'auth_failed',
-        400: 'invalid_request',
-      }[caught?.statusCode] ?? 'unknown';
+      caught?.errorCode ?? statusCodeMap[caught?.statusCode] ?? 'unknown';
 
     const url = new URL('/signin', config.CLIENT_BASE_URL);
     url.searchParams.set('error', errorCode);

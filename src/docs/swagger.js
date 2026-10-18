@@ -299,7 +299,7 @@ export const swaggerDefinition = {
         tags: ['Auth'],
         summary: '소셜 로그인 콜백',
         description:
-          '공급자가 돌려준 인가 코드를 state·PKCE 로 검증한 뒤 토큰 교환 → 프로필 조회 → 유저 생성/조회 → 인증 쿠키 설정 후 프론트로 302 리다이렉트합니다. 실패하면 JSON 대신 `/signin?error=<code>` 로 리다이렉트합니다(코드: `link_required`·`auth_failed`·`invalid_request`·`unknown`).',
+          '공급자가 돌려준 인가 코드를 state·PKCE 로 검증한 뒤 토큰 교환 → 프로필 조회 → 유저 생성/조회 → 인증 쿠키 설정 후 프론트로 302 리다이렉트합니다. 실패하면 JSON 대신 `/signin?error=<code>` 로 리다이렉트합니다(코드: `link_required`·`auth_failed`·`invalid_request`·`consent_cancelled`·`unknown`).',
         parameters: [
           {
             name: 'provider',
