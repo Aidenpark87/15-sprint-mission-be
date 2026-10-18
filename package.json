@@ -34,7 +34,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
-    "test": "node --test"
+    "test": "node --test",
+    "images:backfill": "node --env-file=./env/.env.development ./scripts/backfill-images.js"
   },
   "engines": {
     "node": "24.x",
