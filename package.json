@@ -36,7 +36,8 @@
     "lint": "eslint .",
     "test": "node --test",
     "images:backfill": "node --env-file=./env/.env.development ./scripts/backfill-images.js",
-    "content:backfill": "node --env-file=./env/.env.development ./scripts/backfill-content.js"
+    "content:backfill": "node --env-file=./env/.env.development ./scripts/backfill-content.js",
+    "favorites:backfill": "node --env-file=./env/.env.development ./scripts/backfill-favorites.js"
   },
   "engines": {
     "node": "24.x",

@@ -86,6 +86,7 @@ const makeProductInput = () => {
       entry.productPrice + faker.number.int({ min: -5000, max: 5000 }),
     ),
     images: imagesFor(entry),
+    favoriteCount: faker.number.int({ min: 1, max: 200 }),
     tags: faker.helpers.arrayElements(PRODUCT_TAG_POOL, {
       min: 0,
       max: PRODUCT_TAG_POOL.length,
