@@ -300,12 +300,48 @@ async function runChecks(BASE) {
     'accessToken 쿠키 보안 스키마',
     Boolean(swaggerSpec.components.securitySchemes.accessTokenCookie),
   );
+
+  return { email };
+}
+
+async function cleanupVerifyUser(database, email) {
+  const user = await database.orm.public.User.where({ email })
+    .select('id')
+    .first();
+  if (!user) return;
+
+  const counts = await Promise.all([
+    database.orm.public.Comment.where({ authorId: user.id }).aggregate((agg) => ({
+      total: agg.count(),
+    })),
+    database.orm.public.Article.where({ authorId: user.id }).aggregate((agg) => ({
+      total: agg.count(),
+    })),
+    database.orm.public.Product.where({ ownerId: user.id }).aggregate((agg) => ({
+      total: agg.count(),
+    })),
+    database.orm.public.Like.where({ userId: user.id }).aggregate((agg) => ({
+      total: agg.count(),
+    })),
+    database.orm.public.SocialAccount.where({ userId: user.id }).aggregate((agg) => ({
+      total: agg.count(),
+    })),
+  ]);
+
+  if (counts.some((row) => row.total > 0)) {
+    console.log(`검증 유저 보존(참조 있음): ${email}`);
+    return;
+  }
+
+  await database.orm.public.User.where({ id: user.id }).delete();
+  console.log(`검증 유저 정리: ${email}`);
 }
 
 async function main() {
   let BASE = externalBase;
   let server = null;
-  let db = null;
+  let db;
+  let verifyEmail = null;
 
   if (!BASE) {
     const { createContainer } = await import('#common/di/container.js');
@@ -323,6 +359,8 @@ async function main() {
     BASE = `http://127.0.0.1:${port}`;
     console.log(`검증용 서버를 띄웠습니다: ${BASE}`);
   } else {
+    const { db: externalDb } = await import('#prisma/db.js');
+    db = externalDb;
     console.log(`이미 실행 중인 서버를 검증합니다: ${BASE}`);
   }
 
@@ -337,9 +375,16 @@ async function main() {
   console.error = (...args) => capturedServerLogs.push(args);
 
   try {
-    await runChecks(BASE);
+    ({ email: verifyEmail } = await runChecks(BASE));
   } finally {
     console.error = originalConsoleError;
+    if (db && verifyEmail) {
+      try {
+        await cleanupVerifyUser(db, verifyEmail);
+      } catch (error) {
+        console.log(`검증 유저 정리 실패: ${error.message}`);
+      }
+    }
     if (server) await new Promise((resolve) => server.close(resolve));
     if (db) await db.close();
   }

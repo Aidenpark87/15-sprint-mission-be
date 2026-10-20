@@ -37,7 +37,9 @@
     "test": "node --test",
     "images:backfill": "node --env-file=./env/.env.development ./scripts/backfill-images.js",
     "content:backfill": "node --env-file=./env/.env.development ./scripts/backfill-content.js",
-    "favorites:backfill": "node --env-file=./env/.env.development ./scripts/backfill-favorites.js"
+    "favorites:backfill": "node --env-file=./env/.env.development ./scripts/backfill-favorites.js",
+    "comments:backfill": "node --env-file=./env/.env.development ./scripts/backfill-comment-authors.js",
+    "users:cleanup": "node --env-file=./env/.env.development ./scripts/cleanup-verify-users.js"
   },
   "engines": {
     "node": "24.x",

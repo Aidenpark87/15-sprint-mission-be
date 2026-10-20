@@ -6,6 +6,7 @@ import {
   resetPandaMarketData,
 } from './seed-safety.js';
 import { ARTICLE_CLOSINGS, SEED_CATALOG } from './seed-catalog.js';
+import { ensureSeedCommenters } from './seed-commenters.js';
 
 faker.seed(20261004);
 
@@ -130,15 +131,28 @@ async function seed(database) {
   const products = await database.orm.public.Product.createAll(productData);
   const articles = await database.orm.public.Article.createAll(articleData);
 
+  const commenters = await ensureSeedCommenters(database);
+  let commentCursor = 0;
+  const nextAuthorId = () =>
+    commenters[commentCursor++ % commenters.length].id;
+
   const commentData = [];
   for (const product of products) {
     for (let index = 0; index < NUM_COMMENTS_PER_PARENT; index += 1) {
-      commentData.push({ ...makeCommentInput(), productId: product.id });
+      commentData.push({
+        ...makeCommentInput(),
+        productId: product.id,
+        authorId: nextAuthorId(),
+      });
     }
   }
   for (const article of articles) {
     for (let index = 0; index < NUM_COMMENTS_PER_PARENT; index += 1) {
-      commentData.push({ ...makeCommentInput(), articleId: article.id });
+      commentData.push({
+        ...makeCommentInput(),
+        articleId: article.id,
+        authorId: nextAuthorId(),
+      });
     }
   }
 
